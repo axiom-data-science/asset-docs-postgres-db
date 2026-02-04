@@ -54,4 +54,5 @@ RUN chown -R postgres:postgres /usr/lib/postgresql/17/lib
 
 WORKDIR /home/supa
 
-USER postgres
+# Runs as root for init, then drops into postgres
+USER root
