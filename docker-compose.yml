@@ -1,0 +1,16 @@
+
+volumes:
+  dbdata:
+
+services:
+  db:
+    image: "asset-docs-postgres-db:latest"
+    build:
+      context:    .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_DB: "asset_docs"
+      POSTGRES_USER: "asset_docs"
+      POSTGRES_PASSWORD: "asset_docs"
+    volumes:
+      - "dbdata:/var/lib/postgresql/data"
