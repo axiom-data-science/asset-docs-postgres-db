@@ -46,7 +46,7 @@ USER root
 ADD https://github.com/supabase/pg_jsonschema.git /home/supa/pg_jsonschema
 
 WORKDIR /home/supa/pg_jsonschema
-RUN cargo pgrx install
+RUN cargo pgrx install && cargo clean
 
 RUN chown -R postgres:postgres /home/supa
 RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
