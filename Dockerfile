@@ -9,6 +9,7 @@ FROM postgres:17.7-trixie
 # period of time)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql-17-wal2json \
+        pgxnclient \
         ca-certificates \
         git \
         build-essential \
@@ -47,6 +48,10 @@ ADD https://github.com/supabase/pg_jsonschema.git /home/supa/pg_jsonschema
 
 WORKDIR /home/supa/pg_jsonschema
 RUN cargo pgrx install && cargo clean
+
+# Finally, install the pgxn package for pg-safeupdate to ensure that we don't
+# accidentally nuke entire tables when updating via PostgREST.
+RUN pgxn install safeupdate
 
 RUN chown -R postgres:postgres /home/supa
 RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
