@@ -3,6 +3,7 @@ FROM postgres:17.7-trixie
 # Based on:
 # * http://git.axiom/axiom/webcoos-postgres-db
 # * https://github.com/supabase/pg_jsonschema/blob/master/dockerfiles/db/Dockerfile
+# * https://github.com/linz/postgresql-tableversion/blob/master/Dockerfile#L21
 
 # postgresql-17-wal2json is required to support live migrations (migrations
 # that don't require dump-then-restore workflows that take the database down for a significant
@@ -20,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libreadline6-dev \
         zlib1g-dev \
         libssl-dev \
+        jq \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -53,7 +55,12 @@ RUN cargo pgrx install && cargo clean
 # accidentally nuke entire tables when updating via PostgREST.
 RUN pgxn install safeupdate
 
-RUN chown -R postgres:postgres /home/supa
+# Add an extension that allows us to version tables (if required)
+ADD https://github.com/axiom-data-science/postgresql-tableversion.git#support-uuid-pkey /home/linz/postgresql-tableversion
+WORKDIR /home/linz/postgresql-tableversion
+RUN gmake && gmake install
+
+RUN chown -R postgres:postgres /home/supa /home/linz
 RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
 RUN chown -R postgres:postgres /usr/lib/postgresql/17/lib
 
