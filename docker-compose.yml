@@ -12,5 +12,11 @@ services:
       POSTGRES_DB: "asset_docs"
       POSTGRES_USER: "asset_docs"
       POSTGRES_PASSWORD: "asset_docs"
+    ports:
+     - 2345:5432
+    # Don't create a persistent volume (for development). Instead, init the
+    # postgres database every time.
+    tmpfs:
+      - "/var/lib/postgresql/data"
     volumes:
-      - "dbdata:/var/lib/postgresql/data"
+      - "./initdb.sh:/docker-entrypoint-initdb.d/99_initdb.sh:ro"
