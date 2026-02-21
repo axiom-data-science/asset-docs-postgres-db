@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libreadline6-dev \
         zlib1g-dev \
         libssl-dev \
+        libmagic-dev \
         jq \
         && \
     apt-get clean && \
@@ -51,7 +52,7 @@ ADD https://github.com/supabase/pg_jsonschema.git /home/supa/pg_jsonschema
 WORKDIR /home/supa/pg_jsonschema
 RUN cargo pgrx install && cargo clean
 
-# Finally, install the pgxn package for pg-safeupdate to ensure that we don't
+# Install the pgxn package for pg-safeupdate to ensure that we don't
 # accidentally nuke entire tables when updating via PostgREST.
 RUN pgxn install safeupdate
 
@@ -60,11 +61,20 @@ ADD https://github.com/axiom-data-science/postgresql-tableversion.git#support-uu
 WORKDIR /home/linz/postgresql-tableversion
 RUN gmake && gmake install
 
-RUN chown -R postgres:postgres /home/supa /home/linz
+# Add extension that allows for being able to determine mimetype/file type
+# based on magic strings
+ADD https://github.com/nmandery/pg_byteamagic.git /home/nmandery/pg_byteamagic
+WORKDIR /home/nmandery/pg_byteamagic
+RUN make && make install
+
+# Remove unnecessary build files
+RUN rm -rf /home/supa /home/linz/ /home/nmandery
+
+# RUN chown -R postgres:postgres /home/supa /home/linz /home/nmandery/pg_byteamagic
 RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
 RUN chown -R postgres:postgres /usr/lib/postgresql/17/lib
 
-WORKDIR /home/supa
+WORKDIR /
 
 # Runs as root for init, then drops into postgres
 USER root
