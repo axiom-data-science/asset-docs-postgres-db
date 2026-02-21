@@ -10,12 +10,12 @@ EOF
 # pgxn load --username "$POSTGRES_USER" -d asset_docs table_version
 
 # operations within the target database
-psql --username "$POSTGRES_USER" asset_docs <<'EOF'
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" asset_docs <<'EOF'
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_jsonschema";
 CREATE EXTENSION IF NOT EXISTS "table_version";
-
+CREATE EXTENSION IF NOT EXISTS "byteamagic";
 
 CREATE SCHEMA IF NOT EXISTS asset_docs AUTHORIZATION asset_docs;
 
@@ -41,6 +41,16 @@ CREATE TABLE IF NOT EXISTS asset_docs.document (
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
 
+CREATE TABLE IF NOT EXISTS asset_docs.document_file (
+    "document_uuid" uuid NOT NULL,
+    "payload" bytea NOT NULL,
+    CONSTRAINT fk_document
+        FOREIGN KEY (document_uuid)
+        REFERENCES asset_docs.document(uuid)
+        ON DELETE CASCADE,
+    CONSTRAINT document_file_pkey PRIMARY KEY (document_uuid)
+);
+
 ALTER TABLE asset_docs.document ENABLE ROW LEVEL SECURITY;
 
 SELECT table_version.ver_enable_versioning('asset_docs', 'document');
@@ -60,5 +70,14 @@ INSERT INTO asset_docs.document (
     'test_description',
     'test_comment'
 );
+
+select
+  byteamagic_mime(
+    decode(
+        '/9j/4AAQSkZJRgABAQEBLAEsAAD/2wBDAFA3PEY8MlBGQUZaVVBfeMiCeG5uePWvuZHI////////////////////////////////////////////////////2wBDAVVaWnhpeOuCguv/////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABUBAQEAAAAAAAAAAAAAAAAAAAEC/9oADAMBAAIQAxAAAAE2f//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEABj8Cf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8hf//aAAwDAQACAAMAAAAQf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Qf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Qf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Qf//Z',
+        'base64'
+    )
+  ) as should_return_image_jpeg_mime;
+
 
 EOF
