@@ -97,7 +97,7 @@ services:
       # Allowt the use of aggregate functions within the postgrest instance.
       PGRST_DB_AGGREGATES_ENABLED: "true"
       # Helper function to maintain the 'person' table.
-      PGRST_DB_PRE_REQUEST: "asset_docs.upsert_person"
+      PGRST_DB_PRE_REQUEST: "asset_docs_private.upsert_person"
 
     ports:
       - "3345:3000"
