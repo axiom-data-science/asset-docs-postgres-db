@@ -1,0 +1,57 @@
+# Create user and database
+psql --username "$POSTGRES_USER" <<'EOF'
+    CREATE ROLE "${ADDB_OWNER_USER}" WITH LOGIN PASSWORD '${ADDB_PASSWORD}';
+    CREATE ROLE "${ADDB_READ_USER}" WITH LOGIN PASSWORD '${ADDB_READ_USER_PASSWORD}';
+    CREATE ROLE "${ADDB_RW_USER}" WITH LOGIN PASSWORD '${ADDB_RW_USER_PASSWORD}';
+    CREATE ROLE "${ADDB_POSTGREST_USER}" WITH LOGIN PASSWORD '${ADDB_POSTGREST_USER_PASSWORD}';
+
+    CREATE DATABASE ${ADDB_DB_NAME} OWNER ${ADDB_OWNER_USER};
+    ALTER USER ${ADDB_OWNER_USER} CREATEDB;
+
+    ALTER DATABASE ${ADDB_DB_NAME} SET session_preload_libraries = 'safeupdate';
+EOF
+
+# operations within the target database
+psql --username "$POSTGRES_USER" "${ADDB_DB_NAME}" <<'EOF'
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pg_jsonschema";
+    CREATE EXTENSION IF NOT EXISTS "table_version";
+    CREATE EXTENSION IF NOT EXISTS "byteamagic";
+    CREATE SCHEMA IF NOT EXISTS ${ADDB_SCHEMA} AUTHORIZATION ${ADDB_OWNER_USER};
+    GRANT USAGE ON SCHEMA ${ADDB_SCHEMA} TO ${ADDB_READ_USER};
+    GRANT USAGE ON SCHEMA ${ADDB_SCHEMA} TO ${ADDB_RW_USER};
+    GRANT SELECT ON ALL TABLES IN SCHEMA ${ADDB_SCHEMA} TO ${ADDB_READ_USER};
+    GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA ${ADDB_SCHEMA} TO ${ADDB_RW_USER};
+
+    -- If a new table gets created, grant SELECT against the read only user
+    ALTER DEFAULT PRIVILEGES IN SCHEMA ${ADDB_SCHEMA} FOR ROLE ${ADDB_OWNER_USER} GRANT SELECT ON TABLES TO ${ADDB_READ_USER};
+    ALTER DEFAULT PRIVILEGES IN SCHEMA ${ADDB_SCHEMA} FOR ROLE ${ADDB_OWNER_USER} GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO ${ADDB_RW_USER};
+
+    -- Set the search path for each of the users
+    ALTER ROLE ${ADDB_OWNER_USER} SET search_path TO "${ADDB_SCHEMA}",public;
+    ALTER ROLE ${ADDB_READ_USER} SET search_path TO "${ADDB_SCHEMA}",public;
+    ALTER ROLE ${ADDB_RW_USER} SET search_path TO "${ADDB_SCHEMA}",public;
+    ALTER ROLE ${ADDB_POSTGREST_USER} SET search_path TO "${ADDB_SCHEMA}",public;
+
+    --Grant both the read only and the read/write roles to the postgrest
+    --user with the idea that it can opt into either depending on the
+    --situation (anonymous access vs. authenticated access).
+    GRANT ${ADDB_READ_USER} TO ${ADDB_POSTGREST_USER};
+    GRANT ${ADDB_RW_USER} TO ${ADDB_POSTGREST_USER};
+    --Needed to be able to set the owner of tables/functions (security definer functions)
+    GRANT ${ADDB_RW_USER} TO ${ADDB_OWNER_USER};
+
+    -- Revoke the default create grant for of any objects in public
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
+    -- Adding anything to public schema that we will need elsewhere
+
+    -- Custom function required to be able to extract text arrays (text[])
+    -- from as JSONB object without requiring a set-returning function (that
+    -- isn't otherwise allowed in policy de)
+    CREATE OR REPLACE FUNCTION public.jsonb_array_to_text_array(_js jsonb)
+    RETURNS text[]
+    LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+    RETURN ARRAY(SELECT jsonb_array_elements_text(_js));
+
+EOF

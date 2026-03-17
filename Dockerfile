@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql-17-wal2json \
         pgxnclient \
         ca-certificates \
+        gettext-base \
         git \
         build-essential \
         pkg-config \
@@ -73,6 +74,26 @@ RUN rm -rf /home/supa /home/linz/ /home/nmandery
 # RUN chown -R postgres:postgres /home/supa /home/linz /home/nmandery/pg_byteamagic
 RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
 RUN chown -R postgres:postgres /usr/lib/postgresql/17/lib
+
+# Copies the envsubstr script to be included during init steps
+COPY ./docker/env.sh /usr/local/bin/env.sh
+RUN chmod ug=rwx,o=rx /usr/local/bin/env.sh
+
+# Custom docker-entrypoint.sh to call env.sh just ahead of db initialization
+COPY ./docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod u=rwx,go=rx /usr/local/bin/docker-entrypoint.sh
+
+# Allow the postgres user to write to the initdb.d dir (for template processing)
+RUN chown :postgres /docker-entrypoint-initdb.d/
+RUN chmod g=rwx /docker-entrypoint-initdb.d/
+
+# Same, but for postinit template dir
+RUN mkdir /templates \
+    && chown :postgres /templates/ \
+    && chown :postgres /templates/ \
+    && chmod g=rwx /templates/
+
+COPY --chown=postgres:postgres templates/postinit/*.template /templates/
 
 WORKDIR /
 

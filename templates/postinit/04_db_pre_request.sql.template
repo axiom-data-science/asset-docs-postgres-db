@@ -1,0 +1,85 @@
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.upsert_person() RETURNS void AS $$
+DECLARE
+  jwt_sub text := current_setting('request.jwt.claims', true)::json->>'sub';
+  is_transaction_read_only text := current_setting('transaction_read_only', true);
+  authenticated_person_type text := 'authenticated_person';
+  authenticated_person_exists bool := false;
+BEGIN
+
+    IF EXISTS (
+        SELECT p.uuid FROM ${ADDB_SCHEMA}.person p
+        WHERE
+            p.data->>'sub' = jwt_sub AND
+            p."type" = authenticated_person_type
+    ) THEN
+        authenticated_person_exists := true;
+    END IF;
+
+    -- NOTE: A hard limitation of PostgREST is that it forces all GET/HEAD
+    -- requests to be read-only transactions, meaning that any attempts to
+    -- mutate a database object will throw an error. So, this means that we can
+    -- only update the person table when doing a POST/PUT/DELETE operation. This
+    -- will mostly work, but with the caveat that the user will only show up
+    -- in the persons table once they create an asset doc record.
+    IF (
+        is_transaction_read_only != 'on' AND
+        NOT authenticated_person_exists
+    ) THEN
+        INSERT INTO ${ADDB_SCHEMA}.person
+        (
+            owner_sub,
+            subs_for_select,
+            roles_for_select,
+            subs_for_update,
+            roles_for_update,
+            data,
+            json_schema,
+            type,
+            label
+        ) VALUES (
+            jwt_sub,
+            '[]'::json, -- subs_for_select
+            '[]'::json, -- roles_for_select
+            '[]'::json, -- subs_for_update
+            '[]'::json, -- roles_for_update
+            -- data
+            json_build_object(
+                'sub', jwt_sub,
+                'name', current_setting('request.jwt.claims', true)::json->>'name',
+                'given_name', current_setting('request.jwt.claims', true)::json->>'given_name',
+                'nickname', current_setting('request.jwt.claims', true)::json->>'nickname'
+            ),
+            -- json_schema
+            '{"type":"object","properties":{"sub":{"type":"string"}},"required":["sub"]}'::jsonb,
+            -- type
+            authenticated_person_type,
+            coalesce(
+                current_setting('request.jwt.claims', true)::json->>'name',
+                jwt_sub
+            )
+        );
+    END IF;
+
+    IF (
+        is_transaction_read_only != 'on' AND
+        authenticated_person_exists
+    ) THEN
+        UPDATE ${ADDB_SCHEMA}.person
+        SET
+            data = json_build_object(
+                'sub', jwt_sub,
+                'name', current_setting('request.jwt.claims', true)::json->>'name',
+                'given_name', current_setting('request.jwt.claims', true)::json->>'given_name',
+                'nickname', current_setting('request.jwt.claims', true)::json->>'nickname'
+            ),
+            label = coalesce(
+                current_setting('request.jwt.claims', true)::json->>'name',
+                jwt_sub
+            )
+        WHERE
+            "data"->>'sub' = jwt_sub AND
+            "type" = authenticated_person_type
+        ;
+    END IF;
+END
+$$ LANGUAGE plpgsql;
