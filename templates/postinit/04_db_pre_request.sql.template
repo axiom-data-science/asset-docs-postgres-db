@@ -1,10 +1,15 @@
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.upsert_person() RETURNS void AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_private.upsert_person() RETURNS void AS $$
 DECLARE
   jwt_sub text := current_setting('request.jwt.claims', true)::json->>'sub';
   is_transaction_read_only text := current_setting('transaction_read_only', true);
   authenticated_person_type text := 'authenticated_person';
   authenticated_person_exists bool := false;
 BEGIN
+
+    IF NOT pg_has_role('${ADDB_RW_USER}', 'MEMBER' ) THEN
+        -- Do nothing unless we are able to read/write.
+        RETURN;
+    END IF;
 
     IF EXISTS (
         SELECT p.uuid FROM ${ADDB_SCHEMA}.person p
@@ -83,3 +88,7 @@ BEGIN
     END IF;
 END
 $$ LANGUAGE plpgsql;
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.upsert_person() FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.upsert_person() TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.upsert_person() TO ${ADDB_RW_USER};
