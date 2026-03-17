@@ -1,0 +1,197 @@
+-- DROP TABLE IF EXISTS ${ADDB_SCHEMA}.document_file;
+CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document_file (
+    "document_uuid" uuid NOT NULL,
+    "name" text NOT NULL,
+    "payload" bytea NOT NULL,
+    "size_bytes" text generated always as (length(payload)) stored,
+    "mime_type" text generated always as (byteamagic_mime(substr(payload, 0, 4100))) stored,
+    "md5sum" text generated always as (md5(payload)) stored,
+    CONSTRAINT fk_document
+        FOREIGN KEY (document_uuid)
+        REFERENCES ${ADDB_SCHEMA}.document(uuid)
+        ON DELETE CASCADE,
+    CONSTRAINT document_file_pkey PRIMARY KEY (document_uuid)
+);
+
+-- Ensure that we can only SELECT on document_file, and all INSERTs are handled
+-- via upload function (GRANTed later)
+REVOKE ALL ON ${ADDB_SCHEMA}.document_file FROM ${ADDB_READ_USER};
+REVOKE ALL ON ${ADDB_SCHEMA}.document_file FROM ${ADDB_RW_USER};
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.upload_document_file(bytea) RETURNS uuid AS $$
+DECLARE
+    incoming_payload ALIAS FOR $1;
+    temp_uuid uuid;
+    max_file_bytes int := 50000000;
+    maybe_document_name text;
+    content_disposition_header_value text;
+    document_file_data jsonb;
+    document_file_attrs jsonb;
+    document_file_schema jsonb := (
+        '{'
+        '   "$schema":"https://json-schema.org/draft/2020-12/schema",'
+        '   "type":"object",'
+        '   "properties": {'
+        '       "$ref": {'
+        '           "type": "string",'
+        '           "format": "uri"'
+        '       }'
+        '   },'
+        '   "additionalProperties": false,'
+        '   "required": ["$ref"]'
+        '}'
+    )::jsonb;
+BEGIN
+    temp_uuid := uuid_generate_v4();
+
+    IF NOT pg_has_role('${ADDB_RW_USER}', 'MEMBER' ) THEN
+        RAISE insufficient_privilege USING
+              message = 'insufficient_privilege',
+              detail = 'Cannot upload as anonymous user';
+    END IF;
+
+    -- reasonable upper bound on file size
+    IF length( incoming_payload ) > max_file_bytes THEN
+        raise sqlstate 'PT400' using
+              message = 'INVALID REQUEST',
+              detail = 'Max file size exceeded',
+              hint = format('File size (%s bytes) exceeds max file size (%)', length( incoming_payload ), max_file_bytes );
+    END IF;
+
+    -- TODO: detect and potentially limit mime types
+
+    content_disposition_header_value := current_setting('request.headers', true)::json->>'content-disposition';
+
+    IF content_disposition_header_value IS NOT NULL THEN
+        --TODO: Trying to simplify parsing, we enforce the simplest parsing possible
+        --with one parameter, one value.
+        IF content_disposition_header_value LIKE 'filename="%"' THEN
+            maybe_document_name := (string_to_array( content_disposition_header_value, '"' ))[2];
+        ELSE
+            IF content_disposition_header_value LIKE 'filename=%' THEN
+                maybe_document_name := (string_to_array( content_disposition_header_value, '=' ))[2];
+            END IF;
+        END IF;
+    END IF;
+
+    IF maybe_document_name IS NULL THEN
+        maybe_document_name := temp_uuid::text;
+    END IF;
+
+    document_file_data := jsonb_build_object(
+        '$ref',
+        '//rpc/get_document_file?uuid=' || temp_uuid
+    );
+
+    document_file_attrs := jsonb_build_object(
+        'mime_type',
+        byteamagic_mime(substr( incoming_payload, 0, 4100)),
+        'size_bytes',
+        length( incoming_payload ),
+        'md5sum',
+        md5( incoming_payload )
+    );
+
+    insert into ${ADDB_SCHEMA}.document
+    (
+        "uuid",
+        "type",
+        "label",
+        data,
+        json_schema,
+        attrs
+    )
+    values
+    (
+        temp_uuid,
+        'document_file',
+        maybe_document_name,
+        document_file_data,
+        document_file_schema,
+        document_file_attrs
+    );
+
+    insert into ${ADDB_SCHEMA}.document_file
+    (
+        document_uuid,
+        "name",
+        payload
+    )
+    values
+    (
+        temp_uuid,
+        maybe_document_name,
+        incoming_payload
+    );
+
+    RETURN temp_uuid;
+END;
+$$ LANGUAGE PLPGSQL;
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.upload_document_file(bytea) FROM public;
+
+ALTER FUNCTION ${ADDB_SCHEMA}.upload_document_file(bytea) SECURITY DEFINER;
+GRANT CREATE ON SCHEMA ${ADDB_SCHEMA} TO ${ADDB_RW_USER};
+ALTER FUNCTION ${ADDB_SCHEMA}.upload_document_file(bytea) OWNER TO ${ADDB_RW_USER};
+REVOKE CREATE ON SCHEMA ${ADDB_SCHEMA} FROM ${ADDB_RW_USER};
+
+
+DROP DOMAIN IF EXISTS "*/*" CASCADE;
+CREATE DOMAIN "*/*" AS bytea;
+
+-- From: https://docs.postgrest.org/en/v12/how-tos/providing-images-for-img.html#providing-img
+CREATE OR REPLACE FUNCTION get_document_file("uuid" uuid) returns "*/*" as
+$$
+DECLARE
+    headers text;
+    payload bytea;
+  BEGIN
+    SELECT format(
+      '[{"Content-Type": "%s"},'
+       '{"Content-Length": "%s"},'
+       '{"Cache-Control": "max-age=259200"}]'
+      , df.mime_type, df.size_bytes )
+    FROM
+        ${ADDB_SCHEMA}.document_file df
+    WHERE
+        df.document_uuid = get_document_file.uuid
+    INTO headers;
+
+    PERFORM set_config('response.headers', headers, true);
+
+    SELECT
+      df.payload
+    FROM
+      ${ADDB_SCHEMA}.document d
+    INNER JOIN
+      ${ADDB_SCHEMA}.document_file df
+    ON
+      d.uuid = df.document_uuid
+    WHERE d.uuid = get_document_file.uuid into payload;
+
+    IF FOUND -- special var, see https://www.postgresql.org/docs/current/plpgsql-statements.html#PLPGSQL-STATEMENTS-DIAGNOSTICS
+    THEN return(payload);
+    ELSE raise sqlstate 'PT404' using
+      message = 'NOT FOUND',
+      detail = 'File not found',
+      hint = format('%s seems to be an invalid document UUID', get_document_file.uuid);
+    END IF;
+  end
+$$ language plpgsql;
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_document_file(uuid) FROM public;
+
+ALTER FUNCTION ${ADDB_SCHEMA}.get_document_file(uuid) SECURITY DEFINER;
+GRANT CREATE ON SCHEMA ${ADDB_SCHEMA} TO ${ADDB_RW_USER};
+ALTER FUNCTION ${ADDB_SCHEMA}.get_document_file(uuid) OWNER TO ${ADDB_RW_USER};
+REVOKE CREATE ON SCHEMA ${ADDB_SCHEMA} FROM ${ADDB_RW_USER};
+
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.upload_document_file TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_document_file TO ${ADDB_RW_USER};
+-- Read-only can technically see and call the function, but will be denied if not rw
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.upload_document_file TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_document_file TO ${ADDB_READ_USER};
+-- Finally, allow the rw role to read and write to document file while
+-- preventing direct access via other means.
+GRANT SELECT, INSERT ON ${ADDB_SCHEMA}.document_file TO ${ADDB_RW_USER};

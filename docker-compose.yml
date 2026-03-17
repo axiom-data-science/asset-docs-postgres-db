@@ -9,14 +9,99 @@ services:
       context:    .
       dockerfile: Dockerfile
     environment:
-      POSTGRES_DB: "asset_docs"
-      POSTGRES_USER: "asset_docs"
-      POSTGRES_PASSWORD: "asset_docs"
+      # For postgres initialization
+      - POSTGRES_DB
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      # custom envsubst variables borrowed from the environment
+      - ADDB_DB_NAME
+      - ADDB_OWNER_USER
+      - ADDB_PASSWORD
+      - ADDB_POSTGREST_USER
+      - ADDB_POSTGREST_USER_PASSWORD
+      - ADDB_READ_USER
+      - ADDB_READ_USER
+      - ADDB_READ_USER_PASSWORD
+      - ADDB_RW_USER
+      - ADDB_RW_USER_PASSWORD
+      - ADDB_SCHEMA
     ports:
      - 2345:5432
-    # Don't create a persistent volume (for development). Instead, init the
-    # postgres database every time.
+    healthcheck:
+          test: ["CMD", "pg_isready", "-U", "${ADDB_OWNER_USER}", "--dbname", "${ADDB_DB_NAME}" ]
+          interval: 5s
+          timeout: 3s
+          retries: 3
+          start_period: 2s
+    # By default, don't create a persistent volume (for development). Instead,
+    # init the postgres database every time
     tmpfs:
       - "/var/lib/postgresql/data"
     volumes:
-      - "./initdb.sh:/docker-entrypoint-initdb.d/99_initdb.sh:ro"
+      # But if you need the database to persist, between restarts, you can mount
+      # the dbdata volume instead of the tmpfs
+      # - "dbdata:/var/lib/postgresql/data:rw"
+      - "./templates/initdb.sh.template:/docker-entrypoint-initdb.d/99_initdb.sh.template"
+
+
+  postinit:
+    image: "asset-docs-postgres-db:latest"
+    build:
+      context:    .
+      dockerfile: Dockerfile
+    environment:
+      - ADDB_DB_NAME
+      - ADDB_OWNER_USER
+      - ADDB_PASSWORD
+      - ADDB_POSTGREST_USER
+      - ADDB_POSTGREST_USER_PASSWORD
+      - ADDB_READ_USER
+      - ADDB_READ_USER_PASSWORD
+      - ADDB_RW_USER
+      - ADDB_RW_USER_PASSWORD
+      - ADDB_SCHEMA
+      - ADDB_SUPERADMIN_ENTITLEMENT
+      # psql to use PGPASSWORD env var instead of requiring user input
+      - PGPASSWORD=${ADDB_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - "./templates/postinit/:/templates"
+    command: >
+      sh -c "/usr/local/bin/env.sh /templates &&
+      pg_isready --host db -U '${ADDB_OWNER_USER}' --dbname '${ADDB_DB_NAME}' --timeout 5 &&
+      find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | xargs -I xyz psql -v ON_ERROR_STOP=1 --host db -U '${ADDB_OWNER_USER}' --dbname '${ADDB_DB_NAME}' -f xyz &&
+      find /templates/ -maxdepth 1 -type f -iname '*.sql' -delete"
+
+  postgrest:
+    image: "postgrest/postgrest:v13.0.4"
+    environment:
+      PGRST_DB_URI: "postgresql://${ADDB_POSTGREST_USER}:${ADDB_POSTGREST_USER_PASSWORD}@db:5432/${ADDB_DB_NAME}"
+      PGRST_DB_SCHEMAS: "asset_docs"
+      PGRST_DB_ANON_ROLE: "${ADDB_READ_USER}"
+      PGRST_JWT_SECRET: "${ADDB_PGRST_JWT_SECRET}"
+      # When checking for a user's role, look under 'roles' for
+      # the specific read/write role we're expecting the postgrest service
+      # to be able to run (the not DB_ANON_ROLE) above. This will be the
+      # real, actual Postgres role that is given the ability to read/write
+      # to the schema in question.
+      PGRST_JWT_ROLE_CLAIM_KEY: ".roles[?(@ == \"${ADDB_RW_USER}\")]"
+      PGRST_JWT_AUD: "${ADDB_PGRST_JWT_REQUIRED_AUDIENCE}"
+      # PGRST_OPENAPI_SERVER_PROXY_URI: "TODO"
+      # Enable for debugging and/or logging the SQL statements emitted by
+      # PostgREST
+      PGRST_LOG_LEVEL: "debug"
+      PGRST_LOG_QUERY: "main-query"
+      # Allowt the use of aggregate functions within the postgrest instance.
+      PGRST_DB_AGGREGATES_ENABLED: "true"
+      # Helper function to maintain the 'person' table.
+      PGRST_DB_PRE_REQUEST: "asset_docs.upsert_person"
+
+    ports:
+      - "3345:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
