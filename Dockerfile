@@ -94,6 +94,7 @@ RUN mkdir /templates \
     && chmod g=rwx /templates/
 
 COPY --chown=postgres:postgres templates/postinit/*.template /templates/
+COPY --chown=postgres:postgres templates/initdb.sh.template /docker-entrypoint-initdb.d/99_initdb.sh.template
 
 WORKDIR /
 
