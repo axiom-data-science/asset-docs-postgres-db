@@ -1,0 +1,52 @@
+
+CREATE TYPE ${ADDB_SCHEMA}.object_category AS ENUM ('person', 'document');
+
+CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
+    "uuid" uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
+    "owner_sub" VARCHAR(64) NOT NULL,
+    "label" text NOT NULL,
+    "slug" text NOT NULL UNIQUE,
+    "category" object_category DEFAULT 'document'::object_category,
+    "description" text,
+    "created_at" timestamptz NOT NULL DEFAULT now(),
+    "updated_at" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.enum_values AS
+SELECT 
+    t.typname AS enum_name, 
+    e.enumlabel AS enum_value
+FROM pg_type t 
+JOIN pg_enum e ON t.oid = e.enumtypid
+JOIN pg_namespace n ON n.oid = t.typnamespace
+WHERE n.nspname = '${ADDB_SCHEMA}';
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger() RETURNS TRIGGER AS $$
+BEGIN
+    -- Maintain updated_at/created_at
+    NEW.updated_at = now();
+    IF OLD.created_at IS NOT NULL THEN
+        NEW.created_at = OLD.created_at;
+    END IF;
+
+    -- Set owner_sub to the current sub if not already set, but don't override if it was already set.
+    IF current_setting('request.jwt.claims', true) IS NOT NULL THEN
+    IF OLD.owner_sub IS NOT NULL THEN
+        -- Don't update original if it was originally set.
+        NEW.owner_sub = OLD.owner_sub;
+    ELSE
+        --Otherwise, owner will be the current sub
+        NEW.owner_sub := current_setting('request.jwt.claims', true)::json->>'sub';
+    END IF;
+    END IF;
+
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER trigger_${ADDB_SCHEMA}_object_type_update_trigger
+BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.object_type
+FOR EACH ROW
+EXECUTE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger();

@@ -16,13 +16,12 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
     "roles_for_update" jsonb NOT NULL DEFAULT '[]'::jsonb,
     "data" jsonb NOT NULL DEFAULT '{}'::jsonb,
     "attrs" jsonb NOT NULL DEFAULT '{}'::jsonb,
-    "json_schema" jsonb NOT NULL DEFAULT '{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"dummy_schema.json","title":"Dummy Schema","description":"A dummy schema","type":"object"}'::jsonb,
     "created_at" timestamptz NOT NULL DEFAULT now(),
     "updated_at" timestamptz NOT NULL DEFAULT now(),
-    "type" varchar(256) NOT NULL DEFAULT '',
     "label" varchar(256) NOT NULL DEFAULT '',
     "description" text NOT NULL DEFAULT '',
     "comments" text NOT NULL DEFAULT '',
+    "object_type_uuid" uuid REFERENCES ${ADDB_SCHEMA}.object_type(uuid) ON DELETE SET NULL,
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
 
@@ -176,7 +175,11 @@ USING (
     )
 );
 
+
+
+
 CREATE OR REPLACE FUNCTION asset_doc_insert_update_trigger() RETURNS TRIGGER AS $$
+
 BEGIN
     IF current_setting('request.jwt.claims', true) IS NOT NULL THEN
     IF OLD.owner_sub IS NOT NULL THEN
@@ -214,14 +217,21 @@ BEGIN
 
     --Custom handling of JSON schema constraint, raising a check_violation error
     --if schema doesn't match (along with list of errors)
-    IF NOT jsonschema_is_valid((NEW.json_schema)::json) THEN
-        RAISE sqlstate 'PT400' USING
-            message = 'json_schema_invalid',
-            detail = 'The schema submitted does not appear to be a valid JSON schema',
-            hint = 'Check the JSON schema you submitted for errors';
-    END IF;
+    -- IF NOT jsonschema_is_valid((NEW.json_schema)::json) THEN
+    --     RAISE sqlstate 'PT400' USING
+    --         message = 'json_schema_invalid',
+    --         detail = 'The schema submitted does not appear to be a valid JSON schema',
+    --         hint = 'Check the JSON schema you submitted for errors';
+    -- END IF;
 
-    IF NOT jsonb_matches_schema((NEW.json_schema)::json, (NEW.data)::jsonb) THEN
+    IF NOT jsonb_matches_schema(
+        (
+            (
+                ${ADDB_SCHEMA}.get_default_schema_at_object_type_uuid(NEW.object_type_uuid)
+            ).json_schema
+        )::json, 
+        (NEW.data)::jsonb
+    ) THEN
         RAISE sqlstate 'PGRST' USING
             message = json_build_object(
                 -- 'code' must be present, and also a string

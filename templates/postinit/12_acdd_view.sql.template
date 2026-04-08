@@ -1,0 +1,20 @@
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_acdd_vw CASCADE;
+
+CREATE VIEW ${ADDB_SCHEMA}.document_acdd_vw AS (
+    SELECT
+        COALESCE( d.data->>'Conventions', NULL ) as "Conventions",
+        COALESCE( d.data->>'featureType', NULL ) as "featureType",
+        COALESCE( d.data->>'id', NULL ) as "id",
+        COALESCE( d.data->>'infoUrl', NULL ) as "infoUrl",
+        COALESCE( d.data->>'keywords', NULL ) as "keywords",
+        COALESCE( d.data->>'license', NULL ) as "license",
+        COALESCE( d.data->>'naming_authority', NULL ) as "naming_authority",
+        COALESCE( d.data->>'references', NULL ) as "references",
+        COALESCE( d.data->>'standard_name_vocabulary', NULL ) as "standard_name_vocabulary",
+        COALESCE( d.data->>'summary', NULL ) as "summary",
+        COALESCE( d.data->>'title', NULL ) as "title"
+    FROM
+        ${ADDB_SCHEMA}.document d
+    -- WHERE
+    --     d.type = 'water_level'
+);

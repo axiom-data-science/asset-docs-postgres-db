@@ -1,0 +1,58 @@
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_default_schema_at_object_type_uuid("object_type_uuid" uuid) RETURNS ${ADDB_SCHEMA}.object_schema as
+$$
+DECLARE
+    default_schema ${ADDB_SCHEMA}.object_schema;
+  BEGIN
+    SELECT os.*
+    INTO default_schema
+    FROM
+        ${ADDB_SCHEMA}.object_schema os
+    WHERE
+        os.object_type_uuid = get_default_schema_at_object_type_uuid.object_type_uuid
+        AND os.is_type_default = true;
+
+    IF default_schema IS NULL THEN
+      SELECT os.*
+      INTO default_schema
+      FROM
+          ${ADDB_SCHEMA}.object_schema os
+      WHERE
+          os.object_type_uuid = get_default_schema_at_object_type_uuid.object_type_uuid
+      ORDER BY os.version DESC
+      LIMIT 1;
+
+    END IF;
+    RETURN default_schema;
+  end
+$$ language plpgsql;
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_default_schema_at_object_type_slug("object_type_slug" text) RETURNS ${ADDB_SCHEMA}.object_schema as
+$$
+DECLARE
+    default_schema ${ADDB_SCHEMA}.object_schema;
+  BEGIN
+    SELECT os.*
+    INTO default_schema
+    FROM
+        ${ADDB_SCHEMA}.object_schema os
+    JOIN ${ADDB_SCHEMA}.object_type ot ON os.object_type_uuid = ot.uuid
+    WHERE
+        ot.slug = object_type_slug
+        AND os.is_type_default = true;
+
+    IF default_schema IS NULL THEN
+      SELECT os.*
+      INTO default_schema
+      FROM
+          ${ADDB_SCHEMA}.object_schema os
+      JOIN ${ADDB_SCHEMA}.object_type ot ON os.object_type_uuid = ot.uuid
+      WHERE
+          ot.slug = object_type_slug
+      ORDER BY os.version DESC
+      LIMIT 1;
+
+    END IF;
+    RETURN default_schema;
+  end
+$$ language plpgsql;

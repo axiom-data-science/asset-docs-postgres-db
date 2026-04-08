@@ -43,3 +43,6 @@ curl --silent "https://ego.srv.axds.co/application/o/asset-docs/jwks/" | jq -Rsa
 ```
 
 ...which is suitable for inclusion in the `.env` file for the
+
+
+Note: when rebuilding with table changes, run `docker-compose kill -s SIGUSR1 postgrest` after `docker-compose up` so that postgrest rebuilds schema cache
