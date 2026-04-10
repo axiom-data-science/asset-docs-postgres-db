@@ -1,5 +1,9 @@
-
-CREATE TYPE ${ADDB_SCHEMA}.object_category AS ENUM ('person', 'document');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'object_category') THEN
+        CREATE TYPE ${ADDB_SCHEMA}.object_category AS ENUM ('person', 'document');
+    END IF;
+END$$;
 
 CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
     "uuid" uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
