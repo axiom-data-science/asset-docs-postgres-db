@@ -1,7 +1,7 @@
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'object_category') THEN
-        CREATE TYPE ${ADDB_SCHEMA}.object_category AS ENUM ('person', 'document');
+        CREATE TYPE ${ADDB_SCHEMA}.object_category AS ENUM ('person', 'document', 'document_file');
     END IF;
 END$$;
 
@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
     "category" object_category DEFAULT 'document'::object_category,
     "description" text,
     "created_at" timestamptz NOT NULL DEFAULT now(),
-    "updated_at" timestamptz NOT NULL DEFAULT now()
+    "updated_at" timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT object_type_slug_unique UNIQUE (slug)
 );
 
 CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.enum_values AS
