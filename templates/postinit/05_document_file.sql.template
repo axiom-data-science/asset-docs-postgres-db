@@ -31,10 +31,14 @@ DECLARE
 BEGIN
     temp_uuid := uuid_generate_v4();
 
-    IF NOT pg_has_role('${ADDB_RW_USER}', 'MEMBER' ) THEN
+    IF (
+        current_setting('request.jwt.claims', true)::jsonb->>'sub' IS NULL
+        OR
+        NOT pg_has_role( session_user, '${ADDB_RW_USER}', 'MEMBER' )
+    ) THEN
         RAISE insufficient_privilege USING
               message = 'insufficient_privilege',
-              detail = 'Cannot upload as anonymous user';
+              detail = 'Insufficient privileges to upload';
     END IF;
 
     -- reasonable upper bound on file size
