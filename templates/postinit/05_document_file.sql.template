@@ -131,6 +131,13 @@ DECLARE
     headers text;
     payload bytea;
   BEGIN
+    IF NOT get_document_file.uuid THEN
+      raise sqlstate 'PT400' using
+        message = 'BAD REQUEST',
+        detail = 'Must submit uuid parameter',
+        hint = format('"%s" seems to be an invalid document UUID', get_document_file.uuid);
+    END IF;
+
     SELECT format(
       '[{"Content-Type": "%s"},'
        '{"Content-Length": "%s"},'
@@ -187,7 +194,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     owner_sub,
     category
 )
-VALUES 
+VALUES
     (
         'Document file',
         'document_file',
@@ -204,7 +211,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     object_type_uuid,
     json_schema
 )
-VALUES 
+VALUES
     (
         'Document file',
         'document_file',
