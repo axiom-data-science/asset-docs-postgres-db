@@ -131,7 +131,7 @@ DECLARE
     headers text;
     payload bytea;
   BEGIN
-    IF NOT get_document_file.uuid THEN
+    IF NOT (get_document_file.uuid IS NOT NULL) THEN
       raise sqlstate 'PT400' using
         message = 'BAD REQUEST',
         detail = 'Must submit uuid parameter',
