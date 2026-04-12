@@ -28,27 +28,17 @@ DECLARE
     content_disposition_header_value text;
     document_file_data jsonb;
     document_file_attrs jsonb;
-    document_file_schema jsonb := (
-        '{'
-        '   "$schema":"https://json-schema.org/draft/2020-12/schema",'
-        '   "type":"object",'
-        '   "properties": {'
-        '       "$ref": {'
-        '           "type": "string",'
-        '           "format": "uri"'
-        '       }'
-        '   },'
-        '   "additionalProperties": false,'
-        '   "required": ["$ref"]'
-        '}'
-    )::jsonb;
 BEGIN
     temp_uuid := uuid_generate_v4();
 
-    IF NOT pg_has_role('${ADDB_RW_USER}', 'MEMBER' ) THEN
+    IF (
+        current_setting('request.jwt.claims', true)::jsonb->>'sub' IS NULL
+        OR
+        NOT pg_has_role( session_user, '${ADDB_RW_USER}', 'MEMBER' )
+    ) THEN
         RAISE insufficient_privilege USING
               message = 'insufficient_privilege',
-              detail = 'Cannot upload as anonymous user';
+              detail = 'Insufficient privileges to upload';
     END IF;
 
     -- reasonable upper bound on file size
@@ -96,19 +86,17 @@ BEGIN
     insert into ${ADDB_SCHEMA}.document
     (
         "uuid",
-        "type",
         "label",
+        object_type_uuid,
         data,
-        json_schema,
         attrs
     )
     values
     (
         temp_uuid,
-        'document_file',
         maybe_document_name,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'document_file' AND category = 'document_file'),
         document_file_data,
-        document_file_schema,
         document_file_attrs
     );
 
@@ -147,6 +135,13 @@ DECLARE
     headers text;
     payload bytea;
   BEGIN
+    IF NOT (get_document_file.uuid IS NOT NULL) THEN
+      raise sqlstate 'PT400' using
+        message = 'BAD REQUEST',
+        detail = 'Must submit uuid parameter',
+        hint = format('"%s" seems to be an invalid document UUID', get_document_file.uuid);
+    END IF;
+
     SELECT format(
       '[{"Content-Type": "%s"},'
        '{"Content-Length": "%s"},'
@@ -195,3 +190,51 @@ GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_document_file TO ${ADDB_READ_USER};
 -- Finally, allow the rw role to read and write to document file while
 -- preventing direct access via other means.
 GRANT SELECT, INSERT ON ${ADDB_SCHEMA}.document_file TO ${ADDB_RW_USER};
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    label,
+    slug,
+    owner_sub,
+    category
+)
+VALUES
+    (
+        'Document file',
+        'document_file',
+        'system',
+        'document_file'
+    )
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    label,
+    slug,
+    owner_sub,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+)
+VALUES
+    (
+        'Document file',
+        'document_file',
+        'system',
+        true,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'document_file'),
+        (
+            '{'
+            '   "$schema":"https://json-schema.org/draft/2020-12/schema",'
+            '   "type":"object",'
+            '   "properties": {'
+            '       "$ref": {'
+            '           "type": "string",'
+            '           "format": "uri"'
+            '       }'
+            '   },'
+            '   "additionalProperties": false,'
+            '   "required": ["$ref"]'
+            '}'
+        )::jsonb
+    )
+ON CONFLICT (slug) DO NOTHING;

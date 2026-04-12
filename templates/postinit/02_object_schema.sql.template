@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_schema (
     "created_at" timestamptz NOT NULL DEFAULT now(),
     "updated_at" timestamptz NOT NULL DEFAULT now(),
     "object_type_uuid" uuid NOT NULL REFERENCES ${ADDB_SCHEMA}.object_type(uuid) ON DELETE CASCADE,
-    "json_schema" jsonb NOT NULL DEFAULT '{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"default_schema.json","title":"Default Schema","description":"Open ended default schema","type":"object"}'::jsonb
+    "json_schema" jsonb NOT NULL DEFAULT '{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"default_schema.json","title":"Default Schema","description":"Open ended default schema","type":"object"}'::jsonb,
+    CONSTRAINT object_schema_slug_unique_per_type UNIQUE (slug, object_type_uuid)
 );
 
 
