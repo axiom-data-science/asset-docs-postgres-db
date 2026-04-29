@@ -25,8 +25,15 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
 
+-- Working with an existing table, we have to tread carefully when trying to
+-- create a not-null column.
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 
-ALTER TABLE ${ADDB_SCHEMA}.document ADD COLUMN IF NOT EXISTS slug varchar(256) NOT NULL;
+UPDATE ${ADDB_SCHEMA}.document SET slug = uuid::text WHERE slug IS NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ALTER COLUMN slug SET NOT NULL;
 
 ALTER TABLE ${ADDB_SCHEMA}.document
 DROP CONSTRAINT IF EXISTS document_type_slug_uniq;
