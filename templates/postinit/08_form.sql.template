@@ -24,6 +24,65 @@ DROP INDEX IF EXISTS ${ADDB_SCHEMA}_form_slug_constraint;
 CREATE UNIQUE INDEX ${ADDB_SCHEMA}_form_slug_constraint
   ON ${ADDB_SCHEMA}.form(slug);
 
+DROP POLICY IF EXISTS form_policy_select ON ${ADDB_SCHEMA}.form;
+CREATE POLICY form_policy_select ON ${ADDB_SCHEMA}.form
+FOR SELECT
+--  All object schemas publicly SELECTable
+USING ( true );
+
+DROP POLICY IF EXISTS form_policy_insert ON ${ADDB_SCHEMA}.form;
+CREATE POLICY form_policy_insert ON ${ADDB_SCHEMA}.form
+FOR INSERT
+--  forms INSERTable when user has claims and is superadmin
+WITH CHECK (
+    (
+        current_setting('request.jwt.claims', true) IS NOT NULL AND
+        current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
+        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+    )
+);
+
+DROP POLICY IF EXISTS form_policy_update ON ${ADDB_SCHEMA}.form;
+CREATE POLICY form_policy_update ON ${ADDB_SCHEMA}.form
+FOR UPDATE
+--  forms UPDATEable when user has claims and is superadmin
+USING (
+    (
+        current_setting('request.jwt.claims', true) IS NOT NULL AND
+        current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
+        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+    )
+)
+-- update policy requires both USING *and* WITH_CHECK, as the USING
+-- decides which rows are updateable in the first place, and the
+-- WITH_CHECK determines if the new updates fit with the policy (after
+-- being approved by the USING expression)
+WITH CHECK (
+    (
+        current_setting('request.jwt.claims', true) IS NOT NULL AND
+        current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
+        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+    )
+);
+
+DROP POLICY IF EXISTS form_policy_delete ON ${ADDB_SCHEMA}.form;
+CREATE POLICY form_policy_delete ON ${ADDB_SCHEMA}.form
+FOR DELETE
+--  forms DELETEable claim sub matches owner or superuser
+USING (
+    (
+        current_setting('request.jwt.claims', true) IS NOT NULL AND
+        (
+            owner_sub IS NOT NULL AND
+            owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
+
+        ) OR
+        -- User is marked as superadmin
+        (
+            public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        )
+    )
+);
 
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_form_update_trigger() RETURNS TRIGGER AS $$
 BEGIN
@@ -34,13 +93,13 @@ BEGIN
     END IF;
         -- Set owner_sub to the current sub if not already set, but don't override if it was already set.
     IF current_setting('request.jwt.claims', true) IS NOT NULL THEN
-    IF OLD.owner_sub IS NOT NULL THEN
-        -- Don't update original if it was originally set.
-        NEW.owner_sub = OLD.owner_sub;
-    ELSE
-        --Otherwise, owner will be the current sub
-        NEW.owner_sub := current_setting('request.jwt.claims', true)::json->>'sub';
-    END IF;
+        IF OLD.owner_sub IS NOT NULL THEN
+            -- Don't update original if it was originally set.
+            NEW.owner_sub = OLD.owner_sub;
+        ELSE
+            --Otherwise, owner will be the current sub
+            NEW.owner_sub := current_setting('request.jwt.claims', true)::json->>'sub';
+        END IF;
     END IF;
     RETURN NEW;
 END;
