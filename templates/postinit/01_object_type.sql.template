@@ -26,6 +26,8 @@ JOIN pg_enum e ON t.oid = e.enumtypid
 JOIN pg_namespace n ON n.oid = t.typnamespace
 WHERE n.nspname = '${ADDB_SCHEMA}';
 
+ALTER TABLE ${ADDB_SCHEMA}.object_type ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS object_type_policy_select ON ${ADDB_SCHEMA}.object_type;
 CREATE POLICY object_type_policy_select ON ${ADDB_SCHEMA}.object_type
 FOR SELECT

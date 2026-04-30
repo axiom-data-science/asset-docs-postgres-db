@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.fields_override_config_to_form (
     "updated_at" timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE ${ADDB_SCHEMA}.fields_override_config_to_form ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS fields_override_config_to_form_policy_select ON ${ADDB_SCHEMA}.fields_override_config_to_form;
 CREATE POLICY fields_override_config_to_form_policy_select ON ${ADDB_SCHEMA}.fields_override_config_to_form
 FOR SELECT
