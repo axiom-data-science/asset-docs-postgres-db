@@ -36,6 +36,8 @@ CHECK (
   jsonschema_is_valid((json_schema)::json)
 );
 
+ALTER TABLE ${ADDB_SCHEMA}.object_schema ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS object_schema_policy_select ON ${ADDB_SCHEMA}.object_schema;
 CREATE POLICY object_schema_policy_select ON ${ADDB_SCHEMA}.object_schema
 FOR SELECT

@@ -24,6 +24,8 @@ DROP INDEX IF EXISTS ${ADDB_SCHEMA}_form_slug_constraint;
 CREATE UNIQUE INDEX ${ADDB_SCHEMA}_form_slug_constraint
   ON ${ADDB_SCHEMA}.form(slug);
 
+ALTER TABLE ${ADDB_SCHEMA}.form ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS form_policy_select ON ${ADDB_SCHEMA}.form;
 CREATE POLICY form_policy_select ON ${ADDB_SCHEMA}.form
 FOR SELECT
