@@ -1,0 +1,50 @@
+DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs( aoi text, buffer bigint DEFAULT 0 )
+ RETURNS table (
+   buffered_aoi jsonb,
+   buffered_aoi_area_sqkm double precision,
+   docs jsonb
+ )
+ LANGUAGE plpgsql
+ STABLE
+AS $function$
+  begin
+    return query
+		with the_aoi_4326 as (
+          select
+            ST_TRANSFORM(
+              ST_Buffer(
+                ST_GeographyFromText(
+                  aoi
+                ),
+                buffer
+              )::geometry,
+              4326
+            )::geometry as "aoi"
+        ),
+        the_intersect as (
+            SELECT uuid FROM
+                the_aoi_4326,
+                ${ADDB_SCHEMA}.document a
+            WHERE
+                a.geom is not null AND
+                st_isvalid( a.geom ) AND
+                ST_Intersects(
+                    a.geom,
+                    the_aoi_4326.aoi
+                )
+        )
+        select
+          to_jsonb( the_aoi_4326.aoi::geometry ) as buffered_aoi,
+          st_area( the_aoi_4326.aoi::geography ) / (1000^2) as buffered_aoi_area_sqkm,
+          to_jsonb( array_agg( tu.uuid) ) as document_uuids
+        from
+          the_aoi_4326,
+          the_intersect tu
+        group by
+          the_aoi_4326.aoi
+    ;
+  end;
+$function$
+;
