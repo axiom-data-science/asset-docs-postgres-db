@@ -1,4 +1,4 @@
-FROM postgres:17.7-trixie
+FROM postgis/postgis:17-3.5
 
 # Based on:
 # * http://git.axiom/axiom/webcoos-postgres-db
