@@ -43,6 +43,12 @@ ALTER TABLE ${ADDB_SCHEMA}.document ADD CONSTRAINT document_type_slug_uniq UNIQU
 DROP INDEX IF EXISTS asset_docs_typ_slug_idx;
 CREATE INDEX IF NOT EXISTS asset_docs_typ_slug_idx ON ${ADDB_SCHEMA}.document (object_type_uuid, slug);
 
+-- Adds geometry column
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS geom geometry NULL;
+
+DROP INDEX IF EXISTS asset_docs_geom_idx;
+CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (geom);
 
 ALTER TABLE ${ADDB_SCHEMA}.document ENABLE ROW LEVEL SECURITY;
 
