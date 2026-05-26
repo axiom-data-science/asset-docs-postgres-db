@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.relationship (
+    "uuid" uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
+    "from_document_uuid" VARCHAR(500) REFERENCES ${ADDB_SCHEMA}.document(document_uuid) NOT NULL,
+    "to_document_uuid" VARCHAR(500) REFERENCES ${ADDB_SCHEMA}.document(document_uuid) NOT NULL,
+    "predicate_uuid" VARCHAR(500) REFERENCES ${ADDB_SCHEMA}.predicate(uuid) NOT NULL,
+    "data" jsonb,
+    UNIQUE("from_asset_key", "to_asset_key", "predicate_id")
+);

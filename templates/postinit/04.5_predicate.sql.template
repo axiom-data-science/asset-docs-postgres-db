@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.predicate (
+    "uuid" uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
+    "predicate" VARCHAR(200) NOT NULL UNIQUE,
+    "label" VARCHAR(200) NOT NULL,
+    "inverse_label" VARCHAR(200),
+    "is_directional" BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+INSERT INTO ${ADDB_SCHEMA}.predicate (predicate, label, inverse_label, is_directional) VALUES
+  ('has_parent_package', 'has parent package', 'has child package', true),
+  ('has_asset', 'has asset', 'is contained by package', true),
+  ('is_related_to', 'is related to', NULL, false);
