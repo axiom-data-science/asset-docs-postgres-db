@@ -7,6 +7,6 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.predicate (
 );
 
 INSERT INTO ${ADDB_SCHEMA}.predicate (predicate, label, inverse_label, is_directional) VALUES
-  ('has_parent_package', 'has parent package', 'has child package', true),
-  ('has_asset', 'has asset', 'is contained by package', true),
+  ('has_parent', 'has parent', 'has child', true),
+  ('has_child', 'has child', 'has parent', true),
   ('is_related_to', 'is related to', NULL, false);
