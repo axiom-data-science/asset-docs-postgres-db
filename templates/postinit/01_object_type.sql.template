@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
     "slug" text NOT NULL UNIQUE,
     "category" object_category DEFAULT 'document'::object_category,
     "description" text,
+    "data" jsonb,
     "created_at" timestamptz NOT NULL DEFAULT now(),
     "updated_at" timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT object_type_slug_unique UNIQUE (slug)
@@ -88,6 +89,77 @@ USING (
     )
 );
 
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_validate_object_type_data(data: json) RETURNS boolean AS $$
+BEGIN
+    IF jsonb_matches_schema(
+        (
+            $$
+            {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                    "field_mappings": {
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "geometry": {
+                                "type": "string"
+                            },
+                            "start_date": {
+                                "type": "string"
+                            },
+                            "end_date": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "api_overrides": {
+                        "domain": {
+                            "type": "string"
+                        },
+                        "get": {
+                            "type": "object",
+                            "properties": {
+                                "include_jwt": {
+                                    "type": "boolean"
+                                },
+                                "single": {
+                                    "type": "string"
+                                },
+                                "list": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "post" : {
+                            "type": "string",
+                            "mappings": {
+                                "type": "object",
+                                  "additionalProperties": {
+                                        "type": "string"
+                                    }
+                            }
+                                                                
+                        }
+                    }
+                }
+            }
+            $$
+        )::json,
+        (data)::jsonb
+    ) THEN 
+        RETURN TRUE;
+    ELSE 
+        RETURN FALSE;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger() RETURNS TRIGGER AS $$
 BEGIN
     -- Maintain updated_at/created_at
@@ -108,9 +180,28 @@ BEGIN
     END IF;
 
 
+    IF NOT ${ADDB_SCHEMA}_validate_object_type_data() THEN
+        RAISE sqlstate 'PGRST' USING
+            message = json_build_object(
+                -- 'code' must be present, and also a string
+                'code', 'PT400',
+                'message', 'json_data_invalid',
+                'details', 'JSON data is invalid according to the object type schema',
+                )::text
+            ),
+            detail = json_build_object(
+                -- 'status' must be present, and a number
+                'status', 400,
+                -- 'header' must also be present, and an empty object
+                'headers', '{}'::json
+            );
+    END IF;
+
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE TRIGGER trigger_${ADDB_SCHEMA}_object_type_update_trigger
 BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.object_type
