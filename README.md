@@ -46,3 +46,8 @@ curl --silent "https://ego.srv.axds.co/application/o/asset-docs/jwks/" | jq -Rsa
 
 
 Note: when rebuilding with table changes, run `docker-compose kill -s SIGUSR1 postgrest` after `docker-compose up` so that postgrest rebuilds schema cache
+
+Another note: if running on windows, you might need to convert all line endings to linux:
+```bash
+git ls-files -z | xargs -0 dos2unix
+```
