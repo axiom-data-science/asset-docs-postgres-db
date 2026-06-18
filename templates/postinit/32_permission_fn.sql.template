@@ -1,0 +1,76 @@
+-- Reusable permission checks derived from document update policy rules.
+--
+-- Use `can_modify_document_for_subject(...)` when filtering rows for an
+-- explicit user (sub + roles), for example in ad-hoc SELECTs.
+--
+-- Use `can_modify_document(...)` when evaluating permissions for the current
+-- request JWT claims (same source used by existing RLS policies).
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.can_modify_document_for_subject(
+	p_owner_sub varchar,
+	p_subs_for_update jsonb,
+	p_roles_for_update jsonb,
+	p_lock_sub varchar,
+	p_subject_sub text,
+	p_subject_roles text[]
+) RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+SELECT
+	p_subject_sub IS NOT NULL
+	AND (
+		(
+			p_owner_sub IS NOT NULL
+			AND p_owner_sub = p_subject_sub
+		)
+		OR (
+			p_subs_for_update IS NOT NULL
+			AND p_subs_for_update ? p_subject_sub
+		)
+		OR (
+			p_roles_for_update IS NOT NULL
+			AND p_subject_roles IS NOT NULL
+			AND p_roles_for_update ?| p_subject_roles
+		)
+		OR (
+			p_subject_roles IS NOT NULL
+			AND p_subject_roles @> ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
+		)
+	)
+	AND (
+		p_lock_sub IS NULL
+		OR p_lock_sub = p_subject_sub
+		OR (
+			p_subject_roles IS NOT NULL
+			AND p_subject_roles @> ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
+		)
+	);
+$$;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.can_modify_document(
+	p_owner_sub varchar,
+	p_subs_for_update jsonb,
+	p_roles_for_update jsonb,
+	p_lock_sub varchar
+) RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+SELECT
+	${ADDB_SCHEMA}.can_modify_document_for_subject(
+		p_owner_sub,
+		p_subs_for_update,
+		p_roles_for_update,
+		p_lock_sub,
+		current_setting('request.jwt.claims', true)::json->>'sub',
+		public.jsonb_array_to_text_array(
+			current_setting('request.jwt.claims', true)::jsonb->'roles'
+		)
+	);
+$$;
+
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_for_subject(varchar, jsonb, jsonb, varchar, text, text[]) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_for_subject(varchar, jsonb, jsonb, varchar, text, text[]) TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document(varchar, jsonb, jsonb, varchar) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document(varchar, jsonb, jsonb, varchar) TO ${ADDB_RW_USER};
