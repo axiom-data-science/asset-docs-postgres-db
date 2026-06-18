@@ -1,0 +1,128 @@
+-- Validation checks for permission behavior against 60+ mock data.
+-- This script is intended for local/dev verification and exits with an error
+-- when expected permission behavior changes.
+
+DO $$
+DECLARE
+    failures jsonb;
+BEGIN
+    WITH cases AS (
+        SELECT *
+        FROM (
+            VALUES
+                -- owner checks
+                ('seed-owner-only'::text, 'alice-sub'::text, ARRAY[]::text[], true),
+                ('seed-owner-only'::text, 'bob-sub'::text, ARRAY[]::text[], false),
+
+                -- subs_for_update checks
+                ('seed-sub-grant'::text, 'alice-sub'::text, ARRAY[]::text[], true),
+                ('seed-sub-grant'::text, 'carol-sub'::text, ARRAY[]::text[], false),
+
+                -- roles_for_update checks
+                ('seed-role-grant'::text, 'eve-sub'::text, ARRAY['editor']::text[], true),
+                ('seed-role-grant'::text, 'eve-sub'::text, ARRAY['viewer']::text[], false),
+
+                -- lock behavior checks
+                ('seed-locked-by-owner'::text, 'eve-sub'::text, ARRAY['editor']::text[], false),
+                ('seed-locked-by-owner'::text, 'dave-sub'::text, ARRAY['editor']::text[], true),
+                ('seed-locked-by-qa'::text, 'qa-user-sub'::text, ARRAY['qa']::text[], true),
+                ('seed-locked-by-qa'::text, 'qa-peer-sub'::text, ARRAY['qa']::text[], false),
+
+                -- superadmin override checks
+                ('seed-locked-by-owner'::text, 'admin-sub'::text, ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[], true)
+        ) AS t(slug, subject_sub, subject_roles, expected)
+    ),
+    evaluated AS (
+        SELECT
+            c.slug,
+            c.subject_sub,
+            c.subject_roles,
+            c.expected,
+            ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                d.owner_sub,
+                d.subs_for_update,
+                d.roles_for_update,
+                d.lock_sub,
+                c.subject_sub,
+                c.subject_roles
+            ) AS actual
+        FROM
+            cases c
+        INNER JOIN
+            ${ADDB_SCHEMA}.document d
+        ON
+            d.slug = c.slug
+    )
+    SELECT
+        jsonb_agg(
+            jsonb_build_object(
+                'slug', slug,
+                'subject_sub', subject_sub,
+                'subject_roles', subject_roles,
+                'expected', expected,
+                'actual', actual
+            )
+        )
+    INTO failures
+    FROM evaluated
+    WHERE actual IS DISTINCT FROM expected;
+
+    IF failures IS NOT NULL THEN
+        RAISE EXCEPTION USING
+            MESSAGE = 'Permission validation failed for can_modify_document_for_subject',
+            DETAIL = failures::text;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+    rec record;
+    actual boolean;
+BEGIN
+    FOR rec IN
+        SELECT *
+        FROM (
+            VALUES
+                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-owner-only'::text, true),
+                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-sub-grant'::text, true),
+                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-role-grant'::text, false),
+                ('{"sub":"qa-user-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, true),
+                ('{"sub":"qa-peer-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, false),
+                ('{"sub":"admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, 'seed-locked-by-owner'::text, true)
+        ) AS t(claims_json, slug, expected)
+    LOOP
+        PERFORM set_config('request.jwt.claims', rec.claims_json, false);
+
+        SELECT
+            dwp.can_modify
+        INTO
+            actual
+        FROM
+            ${ADDB_SCHEMA}.document_with_permissions dwp
+        WHERE
+            dwp.slug = rec.slug;
+
+        IF actual IS DISTINCT FROM rec.expected THEN
+            RAISE EXCEPTION USING
+                MESSAGE = 'Permission validation failed for document_with_permissions.can_modify',
+                DETAIL = jsonb_build_object(
+                    'slug', rec.slug,
+                    'claims', rec.claims_json,
+                    'expected', rec.expected,
+                    'actual', actual
+                )::text;
+        END IF;
+    END LOOP;
+
+    PERFORM set_config('request.jwt.claims', '{"sub":"alice-sub","roles":[]}', false);
+    IF (SELECT count(*) FROM ${ADDB_SCHEMA}.document_for_update) <> 2 THEN
+        RAISE EXCEPTION 'document_for_update expected 2 rows for alice-sub';
+    END IF;
+
+    PERFORM set_config('request.jwt.claims', '{"sub":"admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}', false);
+    IF (SELECT count(*) FROM ${ADDB_SCHEMA}.document_for_update) <> 5 THEN
+        RAISE EXCEPTION 'document_for_update expected 5 rows for superadmin';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;

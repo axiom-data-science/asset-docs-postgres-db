@@ -21,6 +21,16 @@ docker compose build
 docker compose up
 ```
 
+## Optional Mock Data Seeding
+
+`postinit` templates prefixed `60+`: mock seed SQL for testing (runs only when enabled)
+
+To enable mock seed data locally:
+
+```shell
+ADDB_ENABLE_MOCK_DATA=true docker compose up --build
+```
+
 
 ## JWT Auth Setup
 

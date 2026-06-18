@@ -1,0 +1,146 @@
+-- Mock data for local permission testing.
+-- Runs only when ADDB_ENABLE_MOCK_DATA=true (controlled in docker-compose postinit command).
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    uuid,
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+)
+VALUES
+    (
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-superadmin',
+        'Seed Document Type',
+        'seed-document-type',
+        'document'::${ADDB_SCHEMA}.object_category,
+        'Mock object_type row used by permission test documents'
+    ),
+    (
+        '10000000-0000-0000-0000-000000000002'::uuid,
+        'seed-superadmin',
+        'Seed Person Type',
+        'seed-person-type',
+        'person'::${ADDB_SCHEMA}.object_category,
+        'Mock object_type row for person category coverage'
+    )
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    slug = EXCLUDED.slug,
+    category = EXCLUDED.category,
+    description = EXCLUDED.description;
+
+INSERT INTO ${ADDB_SCHEMA}.document (
+    uuid,
+    owner_sub,
+    lock_sub,
+    subs_for_select,
+    roles_for_select,
+    subs_for_update,
+    roles_for_update,
+    data,
+    attrs,
+    label,
+    description,
+    comments,
+    object_type_uuid,
+    slug
+)
+VALUES
+    (
+        '20000000-0000-0000-0000-000000000001'::uuid,
+        'alice-sub',
+        NULL,
+        '["alice-sub"]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"scenario":"owner_only"}'::jsonb,
+        '{"seed_group":"permissions"}'::jsonb,
+        'Owner-only update',
+        'Only owner can update',
+        '',
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-owner-only'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000002'::uuid,
+        'bob-sub',
+        NULL,
+        '["alice-sub","bob-sub"]'::jsonb,
+        '[]'::jsonb,
+        '["alice-sub"]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"scenario":"sub_grant"}'::jsonb,
+        '{"seed_group":"permissions"}'::jsonb,
+        'Sub-granted update',
+        'alice-sub can update via subs_for_update',
+        '',
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-sub-grant'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000003'::uuid,
+        'carol-sub',
+        NULL,
+        '[]'::jsonb,
+        '["editor"]'::jsonb,
+        '[]'::jsonb,
+        '["editor"]'::jsonb,
+        '{"seed":true,"scenario":"role_grant"}'::jsonb,
+        '{"seed_group":"permissions"}'::jsonb,
+        'Role-granted update',
+        'Any editor can update via roles_for_update',
+        '',
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-role-grant'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000004'::uuid,
+        'dave-sub',
+        'dave-sub',
+        '[]'::jsonb,
+        '["editor"]'::jsonb,
+        '[]'::jsonb,
+        '["editor"]'::jsonb,
+        '{"seed":true,"scenario":"locked_by_other"}'::jsonb,
+        '{"seed_group":"permissions"}'::jsonb,
+        'Locked by owner',
+        'Editors should fail update unless also lock owner or superadmin',
+        '',
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-locked-by-owner'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000005'::uuid,
+        'erin-sub',
+        'qa-user-sub',
+        '[]'::jsonb,
+        '["qa"]'::jsonb,
+        '[]'::jsonb,
+        '["qa"]'::jsonb,
+        '{"seed":true,"scenario":"locked_matches_qa"}'::jsonb,
+        '{"seed_group":"permissions"}'::jsonb,
+        'Locked by QA user',
+        'qa-user-sub can update because role + lock match',
+        '',
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        'seed-locked-by-qa'
+    )
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    lock_sub = EXCLUDED.lock_sub,
+    subs_for_select = EXCLUDED.subs_for_select,
+    roles_for_select = EXCLUDED.roles_for_select,
+    subs_for_update = EXCLUDED.subs_for_update,
+    roles_for_update = EXCLUDED.roles_for_update,
+    data = EXCLUDED.data,
+    attrs = EXCLUDED.attrs,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    comments = EXCLUDED.comments,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    slug = EXCLUDED.slug;

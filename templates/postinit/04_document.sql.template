@@ -108,39 +108,11 @@ CREATE POLICY document_policy_update ON ${ADDB_SCHEMA}.document
 FOR UPDATE
 --  documents UPDATEable if no JWT claims, or if claim's sub matches owner
 USING (
-    (
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-        -- User is the proper owner
-        (
-        owner_sub IS NOT NULL AND
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is included in the subs_for_update
-        (
-        subs_for_update IS NOT NULL AND
-        subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        ) OR
-        -- User's roles intersect with roles_for_update
-        (
-        roles_for_update IS NOT NULL AND
-        roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    ) AND
-    (
-        lock_sub IS NULL OR
-        (
-        lock_sub IS NOT NULL AND lock_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is marked as ${ADDB_SUPERADMIN_ENTITLEMENT} superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 )
 -- update policy requires both USING *and* WITH_CHECK, as the USING
@@ -148,39 +120,11 @@ USING (
 -- WITH_CHECK determines if the new updates fit with the policy (after
 -- being approved by the USING expression)
 WITH CHECK (
-    (
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-        -- User is the proper owner
-        (
-        owner_sub IS NOT NULL AND
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is included in the subs_for_update
-        (
-        subs_for_update IS NOT NULL AND
-        subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        ) OR
-        -- User's roles intersect with roles_for_update
-        (
-        roles_for_update IS NOT NULL AND
-        roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    ) AND
-    (
-        lock_sub IS NULL OR
-        (
-        lock_sub IS NOT NULL AND lock_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 );
 
@@ -320,30 +264,33 @@ CHECK (
 DROP INDEX IF EXISTS asset_docs_owner_sub_idx;
 CREATE INDEX IF NOT EXISTS asset_docs_owner_sub_idx ON ${ADDB_SCHEMA}.document (owner_sub);
 
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_with_permissions with (security_barrier) as (
+SELECT
+    d.*,
+    ${ADDB_SCHEMA}.can_modify_document(
+        d.owner_sub,
+        d.subs_for_update,
+        d.roles_for_update,
+        d.lock_sub
+    ) AS can_modify
+FROM
+    ${ADDB_SCHEMA}.document d
+);
+
+GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_READ_USER};
+GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_RW_USER};
+
 CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_for_update with (security_barrier) as (
 SELECT
     d.*
 FROM
     ${ADDB_SCHEMA}.document d
 WHERE
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-    d.owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-    or
-    (
-        d.subs_for_update IS NOT NULL AND
-        d.subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-    )
-    or
-    (
-        d.roles_for_update IS NOT NULL AND
-        d.roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-    )
-    or
-    (
-        -- User is marked as superadmin
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        d.owner_sub,
+        d.subs_for_update,
+        d.roles_for_update,
+        d.lock_sub
     )
 );
 
