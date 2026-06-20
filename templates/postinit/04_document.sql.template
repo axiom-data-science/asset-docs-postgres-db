@@ -255,7 +255,9 @@ CHECK (
 DROP INDEX IF EXISTS asset_docs_owner_sub_idx;
 CREATE INDEX IF NOT EXISTS asset_docs_owner_sub_idx ON ${ADDB_SCHEMA}.document (owner_sub);
 
-CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_with_permissions with (security_barrier) as (
+-- Use security_invoker so base-table RLS evaluates as the caller, not the
+-- view owner. This prevents private rows from leaking via view access.
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_with_permissions with (security_barrier, security_invoker = true) as (
 SELECT
     d.*,
     ${ADDB_SCHEMA}.can_modify_document(
@@ -271,7 +273,7 @@ FROM
 GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_READ_USER};
 GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_RW_USER};
 
-CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_for_update with (security_barrier) as (
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_for_update with (security_barrier, security_invoker = true) as (
 SELECT
     d.*
 FROM
@@ -289,7 +291,7 @@ WHERE
 GRANT SELECT ON table_version.asset_docs_document_revision TO ${ADDB_READ_USER};
 GRANT SELECT ON table_version.asset_docs_document_revision TO ${ADDB_RW_USER};
 
-CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_revision with (security_barrier) as (
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_revision with (security_barrier, security_invoker = true) as (
 SELECT
     dr.*
 FROM
