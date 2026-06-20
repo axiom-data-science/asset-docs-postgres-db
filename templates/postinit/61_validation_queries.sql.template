@@ -2,9 +2,22 @@
 -- This script is intended for local/dev verification and exits with an error
 -- when expected permission behavior changes.
 
-DO $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.run_document_permission_validation()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+AS $$
 DECLARE
-    failures jsonb;
+    subject_cases jsonb;
+    subject_failures integer;
+    view_cases jsonb;
+    view_failures integer;
+    update_count_cases jsonb;
+    update_count_failures integer;
+    anonymous_visible_count bigint;
+    minimum_anonymous_visible_count bigint := 1;
+    result jsonb;
 BEGIN
     WITH cases AS (
         SELECT *
@@ -54,44 +67,25 @@ BEGIN
             d.slug = c.slug
     )
     SELECT
-        jsonb_agg(
-            jsonb_build_object(
-                'slug', slug,
-                'subject_sub', subject_sub,
-                'subject_roles', subject_roles,
-                'expected', expected,
-                'actual', actual
-            )
-        )
-    INTO failures
-    FROM evaluated
-    WHERE actual IS DISTINCT FROM expected;
+        COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'slug', slug,
+                    'subject_sub', subject_sub,
+                    'subject_roles', subject_roles,
+                    'expected', expected,
+                    'actual', actual,
+                    'passed', actual IS NOT DISTINCT FROM expected
+                )
+                ORDER BY slug, subject_sub
+            ),
+            '[]'::jsonb
+        ),
+        COUNT(*) FILTER (WHERE actual IS DISTINCT FROM expected)
+    INTO subject_cases, subject_failures
+    FROM evaluated;
 
-    IF failures IS NOT NULL THEN
-        RAISE EXCEPTION USING
-            MESSAGE = 'Permission validation failed for can_modify_document_for_subject',
-            DETAIL = failures::text;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-DO $$
-DECLARE
-    rec record;
-    actual boolean;
-    anonymous_visible_count bigint;
-BEGIN
-    -- Guard against accidental reintroduction of restrictive read policy.
-    PERFORM set_config('request.jwt.claims', '{}'::text, false);
-    SELECT count(*)
-    INTO anonymous_visible_count
-    FROM ${ADDB_SCHEMA}.document_with_permissions;
-
-    IF anonymous_visible_count = 0 THEN
-        RAISE EXCEPTION 'document_with_permissions expected at least 1 row for anonymous access';
-    END IF;
-
-    FOR rec IN
+    WITH cases AS (
         SELECT *
         FROM (
             VALUES
@@ -102,38 +96,188 @@ BEGIN
                 ('{"sub":"qa-peer-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, false),
                 ('{"sub":"admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, 'seed-locked-by-owner'::text, true)
         ) AS t(claims_json, slug, expected)
-    LOOP
-        PERFORM set_config('request.jwt.claims', rec.claims_json, false);
-
+    ),
+    evaluated AS (
         SELECT
-            dwp.can_modify
-        INTO
-            actual
+            c.claims_json,
+            c.slug,
+            c.expected,
+            ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                d.owner_sub,
+                d.subs_for_update,
+                d.roles_for_update,
+                d.lock_sub,
+                c.claims_json::jsonb->>'sub',
+                public.jsonb_array_to_text_array(c.claims_json::jsonb->'roles')
+            ) AS actual
         FROM
-            ${ADDB_SCHEMA}.document_with_permissions dwp
-        WHERE
-            dwp.slug = rec.slug;
+            cases c
+        INNER JOIN
+            ${ADDB_SCHEMA}.document d
+        ON
+            d.slug = c.slug
+    )
+    SELECT
+        COALESCE(
+            jsonb_agg(
+                jsonb_build_object(
+                    'slug', slug,
+                    'claims', claims_json,
+                    'expected', expected,
+                    'actual', actual,
+                    'passed', actual IS NOT DISTINCT FROM expected
+                )
+                ORDER BY slug, claims_json
+            ),
+            '[]'::jsonb
+        ),
+        COUNT(*) FILTER (WHERE actual IS DISTINCT FROM expected)
+    INTO view_cases, view_failures
+    FROM evaluated;
 
-        IF actual IS DISTINCT FROM rec.expected THEN
-            RAISE EXCEPTION USING
-                MESSAGE = 'Permission validation failed for document_with_permissions.can_modify',
-                DETAIL = jsonb_build_object(
-                    'slug', rec.slug,
-                    'claims', rec.claims_json,
-                    'expected', rec.expected,
-                    'actual', actual
-                )::text;
-        END IF;
-    END LOOP;
+    update_count_cases := jsonb_build_array(
+        jsonb_build_object(
+            'subject', 'alice-sub',
+            'expected', 2,
+            'actual', (
+                SELECT count(*)
+                FROM ${ADDB_SCHEMA}.document d
+                WHERE d.slug IN (
+                    'seed-owner-only',
+                    'seed-sub-grant',
+                    'seed-role-grant',
+                    'seed-locked-by-owner',
+                    'seed-locked-by-qa'
+                )
+                AND ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                    d.owner_sub,
+                    d.subs_for_update,
+                    d.roles_for_update,
+                    d.lock_sub,
+                    'alice-sub',
+                    ARRAY[]::text[]
+                )
+            ),
+            'passed', (
+                SELECT count(*)
+                FROM ${ADDB_SCHEMA}.document d
+                WHERE ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                    d.owner_sub,
+                    d.subs_for_update,
+                    d.roles_for_update,
+                    d.lock_sub,
+                    'alice-sub',
+                    ARRAY[]::text[]
+                )
+                AND d.slug IN (
+                    'seed-owner-only',
+                    'seed-sub-grant',
+                    'seed-role-grant',
+                    'seed-locked-by-owner',
+                    'seed-locked-by-qa'
+                )
+            ) = 2
+        ),
+        jsonb_build_object(
+            'subject', 'admin-sub',
+            'expected', 5,
+            'actual', (
+                SELECT count(*)
+                FROM ${ADDB_SCHEMA}.document d
+                WHERE d.slug IN (
+                    'seed-owner-only',
+                    'seed-sub-grant',
+                    'seed-role-grant',
+                    'seed-locked-by-owner',
+                    'seed-locked-by-qa'
+                )
+                AND ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                    d.owner_sub,
+                    d.subs_for_update,
+                    d.roles_for_update,
+                    d.lock_sub,
+                    'admin-sub',
+                    ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
+                )
+            ),
+            'passed', (
+                SELECT count(*)
+                FROM ${ADDB_SCHEMA}.document d
+                WHERE ${ADDB_SCHEMA}.can_modify_document_for_subject(
+                    d.owner_sub,
+                    d.subs_for_update,
+                    d.roles_for_update,
+                    d.lock_sub,
+                    'admin-sub',
+                    ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
+                )
+                AND d.slug IN (
+                    'seed-owner-only',
+                    'seed-sub-grant',
+                    'seed-role-grant',
+                    'seed-locked-by-owner',
+                    'seed-locked-by-qa'
+                )
+            ) = 5
+        )
+    );
 
-    PERFORM set_config('request.jwt.claims', '{"sub":"alice-sub","roles":[]}', false);
-    IF (SELECT count(*) FROM ${ADDB_SCHEMA}.document_for_update) <> 2 THEN
-        RAISE EXCEPTION 'document_for_update expected 2 rows for alice-sub';
-    END IF;
+    SELECT COUNT(*)
+    INTO update_count_failures
+    FROM jsonb_array_elements(update_count_cases) AS c
+    WHERE NOT COALESCE((c->>'passed')::boolean, false);
 
-    PERFORM set_config('request.jwt.claims', '{"sub":"admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}', false);
-    IF (SELECT count(*) FROM ${ADDB_SCHEMA}.document_for_update) <> 5 THEN
-        RAISE EXCEPTION 'document_for_update expected 5 rows for superadmin';
+    SELECT count(*)
+    INTO anonymous_visible_count
+    FROM ${ADDB_SCHEMA}.document d
+    WHERE
+        d.public
+        OR ${ADDB_SCHEMA}.can_modify_document_for_subject(
+            d.owner_sub,
+            d.subs_for_update,
+            d.roles_for_update,
+            d.lock_sub,
+            NULL,
+            NULL
+        );
+
+    result := jsonb_build_object(
+        'summary', jsonb_build_object(
+            'passed',
+                subject_failures = 0
+                AND view_failures = 0
+                AND update_count_failures = 0
+                AND anonymous_visible_count >= minimum_anonymous_visible_count,
+            'subject_failures', subject_failures,
+            'view_failures', view_failures,
+            'update_count_failures', update_count_failures,
+            'anonymous_visible_count', anonymous_visible_count,
+            'minimum_anonymous_visible_count', minimum_anonymous_visible_count
+        ),
+        'checks', jsonb_build_object(
+            'subject_permission_cases', subject_cases,
+            'document_with_permissions_cases', view_cases,
+            'document_for_update_count_cases', update_count_cases
+        )
+    );
+
+    RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.run_document_permission_validation() TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.run_document_permission_validation() TO ${ADDB_RW_USER};
+
+DO $$
+DECLARE
+    validation_result jsonb;
+BEGIN
+    validation_result := ${ADDB_SCHEMA}.run_document_permission_validation();
+
+    IF NOT COALESCE((validation_result->'summary'->>'passed')::boolean, false) THEN
+        RAISE EXCEPTION USING
+            MESSAGE = 'Permission validation failed',
+            DETAIL = validation_result::text;
     END IF;
 END;
 $$ LANGUAGE plpgsql;

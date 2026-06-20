@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
     "label" varchar(256) NOT NULL DEFAULT '',
     "description" text NOT NULL DEFAULT '',
     "comments" text NOT NULL DEFAULT '',
+    "public" boolean NOT NULL DEFAULT false,
     "object_type_uuid" uuid REFERENCES ${ADDB_SCHEMA}.object_type(uuid) ON DELETE SET NULL,
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
@@ -47,6 +48,14 @@ CREATE INDEX IF NOT EXISTS asset_docs_typ_slug_idx ON ${ADDB_SCHEMA}.document (o
 ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS geom geometry NULL;
 
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "public" boolean NULL DEFAULT false;
+
+UPDATE ${ADDB_SCHEMA}.document SET "public" = false WHERE "public" IS NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ALTER COLUMN "public" SET NOT NULL;
+
 DROP INDEX IF EXISTS asset_docs_geom_idx;
 CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (geom);
 
@@ -61,8 +70,17 @@ NOT table_version.ver_is_table_versioned('${ADDB_SCHEMA}', 'document');
 DROP POLICY IF EXISTS document_policy_select ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_select ON ${ADDB_SCHEMA}.document
 FOR SELECT
---  All documents publicly SELECTable.
-USING ( true );
+--  Public documents are SELECTable by everyone. Non-public documents are
+--  SELECTable only for users with modify-level permission.
+USING (
+    "public"
+    OR ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
+    )
+);
 
 DROP POLICY IF EXISTS document_policy_insert ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_insert ON ${ADDB_SCHEMA}.document
