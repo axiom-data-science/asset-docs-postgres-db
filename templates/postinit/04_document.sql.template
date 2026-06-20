@@ -61,35 +61,8 @@ NOT table_version.ver_is_table_versioned('${ADDB_SCHEMA}', 'document');
 DROP POLICY IF EXISTS document_policy_select ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_select ON ${ADDB_SCHEMA}.document
 FOR SELECT
---  All documents publicly SELECTable if no sub/role requirement,
--- otherwise the subs_for_select or roles_for_select indicate a required
--- sub/role for the record.
-USING (
-    (
-    owner_sub IS NOT NULL
-    AND (
-        (
-        --no sub or role requirement for record
-        subs_for_select = '[]'::jsonb AND roles_for_select = '[]'::jsonb
-        )
-        OR
-        (
-        -- user is current owner
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        )
-        OR
-        (
-        --meets sub or requirement for record
-        subs_for_select::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        )
-        OR
-        (
-        --meets role requirement for record
-        roles_for_select::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        )
-    )
-    )
-);
+--  All documents publicly SELECTable.
+USING ( true );
 
 DROP POLICY IF EXISTS document_policy_insert ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_insert ON ${ADDB_SCHEMA}.document

@@ -33,6 +33,45 @@ ON CONFLICT (uuid) DO UPDATE SET
     category = EXCLUDED.category,
     description = EXCLUDED.description;
 
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    uuid,
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+)
+VALUES
+    (
+        '30000000-0000-0000-0000-000000000001'::uuid,
+        'seed-superadmin',
+        'seed-document-schema',
+        'Seed Document Schema',
+        'Default schema for seeded document object type',
+        true,
+        '10000000-0000-0000-0000-000000000001'::uuid,
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Seed Document Schema","type":"object","additionalProperties":true}'::jsonb
+    ),
+    (
+        '30000000-0000-0000-0000-000000000002'::uuid,
+        'seed-superadmin',
+        'seed-person-schema',
+        'Seed Person Schema',
+        'Default schema for seeded person object type',
+        true,
+        '10000000-0000-0000-0000-000000000002'::uuid,
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Seed Person Schema","type":"object","additionalProperties":true}'::jsonb
+    )
+ON CONFLICT (slug) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    is_type_default = EXCLUDED.is_type_default,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    json_schema = EXCLUDED.json_schema;
+
 INSERT INTO ${ADDB_SCHEMA}.document (
     uuid,
     owner_sub,

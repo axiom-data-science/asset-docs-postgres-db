@@ -79,7 +79,18 @@ DO $$
 DECLARE
     rec record;
     actual boolean;
+    anonymous_visible_count bigint;
 BEGIN
+    -- Guard against accidental reintroduction of restrictive read policy.
+    PERFORM set_config('request.jwt.claims', '{}'::text, false);
+    SELECT count(*)
+    INTO anonymous_visible_count
+    FROM ${ADDB_SCHEMA}.document_with_permissions;
+
+    IF anonymous_visible_count = 0 THEN
+        RAISE EXCEPTION 'document_with_permissions expected at least 1 row for anonymous access';
+    END IF;
+
     FOR rec IN
         SELECT *
         FROM (
