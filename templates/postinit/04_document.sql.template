@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
     "label" varchar(256) NOT NULL DEFAULT '',
     "description" text NOT NULL DEFAULT '',
     "comments" text NOT NULL DEFAULT '',
-    "public" boolean NOT NULL DEFAULT false,
+    "published" boolean NOT NULL DEFAULT false,
+    "published_at" timestamptz NULL,
     "object_type_uuid" uuid REFERENCES ${ADDB_SCHEMA}.object_type(uuid) ON DELETE SET NULL,
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
@@ -48,13 +49,29 @@ CREATE INDEX IF NOT EXISTS asset_docs_typ_slug_idx ON ${ADDB_SCHEMA}.document (o
 ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS geom geometry NULL;
 
-ALTER TABLE ${ADDB_SCHEMA}.document
-ADD COLUMN IF NOT EXISTS "public" boolean NULL DEFAULT false;
+-- Old view definitions can depend on legacy document columns. Drop and
+-- recreate them later so column migrations can run safely.
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_with_permissions;
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_for_update;
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_revision;
 
-UPDATE ${ADDB_SCHEMA}.document SET "public" = false WHERE "public" IS NULL;
+ALTER TABLE ${ADDB_SCHEMA}.document
+DROP COLUMN IF EXISTS "public";
 
 ALTER TABLE ${ADDB_SCHEMA}.document
-ALTER COLUMN "public" SET NOT NULL;
+ADD COLUMN IF NOT EXISTS "published" boolean NULL DEFAULT false;
+
+UPDATE ${ADDB_SCHEMA}.document SET "published" = false WHERE "published" IS NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ALTER COLUMN "published" SET NOT NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "published_at" timestamptz NULL;
+
+UPDATE ${ADDB_SCHEMA}.document
+SET published_at = now()
+WHERE published AND published_at IS NULL;
 
 DROP INDEX IF EXISTS asset_docs_geom_idx;
 CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (geom);
@@ -70,10 +87,10 @@ NOT table_version.ver_is_table_versioned('${ADDB_SCHEMA}', 'document');
 DROP POLICY IF EXISTS document_policy_select ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_select ON ${ADDB_SCHEMA}.document
 FOR SELECT
---  Public documents are SELECTable by everyone. Non-public documents are
+--  Published documents are SELECTable by everyone. Non-published documents are
 --  SELECTable only for users with modify-level permission.
 USING (
-    "public"
+    "published"
     OR ${ADDB_SCHEMA}.can_modify_document(
         owner_sub,
         subs_for_update,
@@ -172,6 +189,27 @@ BEGIN
 
     IF OLD.lock_sub IS NOT NULL AND NEW.lock_sub IS NULL THEN
         NEW.locked_at = null;
+    END IF;
+
+    -- Maintain published_at from published state.
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.published THEN
+            NEW.published_at = COALESCE(NEW.published_at, now());
+        ELSE
+            NEW.published_at = NULL;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.published IS DISTINCT FROM OLD.published THEN
+            IF NEW.published THEN
+                NEW.published_at = now();
+            ELSE
+                NEW.published_at = NULL;
+            END IF;
+        ELSIF NEW.published AND NEW.published_at IS NULL THEN
+            NEW.published_at = COALESCE(OLD.published_at, now());
+        ELSIF NOT NEW.published THEN
+            NEW.published_at = NULL;
+        END IF;
     END IF;
 
     IF NEW.slug IS NULL THEN

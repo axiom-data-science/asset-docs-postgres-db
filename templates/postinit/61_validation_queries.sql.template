@@ -24,25 +24,25 @@ BEGIN
         FROM (
             VALUES
                 -- owner checks
-                ('seed-owner-only'::text, 'alice-sub'::text, ARRAY[]::text[], true),
-                ('seed-owner-only'::text, 'bob-sub'::text, ARRAY[]::text[], false),
+                ('seed-owner-only'::text, 'seed-alice-sub'::text, ARRAY[]::text[], true),
+                ('seed-owner-only'::text, 'seed-bob-sub'::text, ARRAY[]::text[], false),
 
                 -- subs_for_update checks
-                ('seed-sub-grant'::text, 'alice-sub'::text, ARRAY[]::text[], true),
-                ('seed-sub-grant'::text, 'carol-sub'::text, ARRAY[]::text[], false),
+                ('seed-sub-grant'::text, 'seed-alice-sub'::text, ARRAY[]::text[], true),
+                ('seed-sub-grant'::text, 'seed-carol-sub'::text, ARRAY[]::text[], false),
 
                 -- roles_for_update checks
-                ('seed-role-grant'::text, 'eve-sub'::text, ARRAY['editor']::text[], true),
-                ('seed-role-grant'::text, 'eve-sub'::text, ARRAY['viewer']::text[], false),
+                ('seed-role-grant'::text, 'seed-eve-sub'::text, ARRAY['editor']::text[], true),
+                ('seed-role-grant'::text, 'seed-eve-sub'::text, ARRAY['viewer']::text[], false),
 
                 -- lock behavior checks
-                ('seed-locked-by-owner'::text, 'eve-sub'::text, ARRAY['editor']::text[], false),
-                ('seed-locked-by-owner'::text, 'dave-sub'::text, ARRAY['editor']::text[], true),
-                ('seed-locked-by-qa'::text, 'qa-user-sub'::text, ARRAY['qa']::text[], true),
-                ('seed-locked-by-qa'::text, 'qa-peer-sub'::text, ARRAY['qa']::text[], false),
+                ('seed-locked-by-owner'::text, 'seed-eve-sub'::text, ARRAY['editor']::text[], false),
+                ('seed-locked-by-owner'::text, 'seed-dave-sub'::text, ARRAY['editor']::text[], true),
+                ('seed-locked-by-qa'::text, 'seed-qa-user-sub'::text, ARRAY['qa']::text[], true),
+                ('seed-locked-by-qa'::text, 'seed-qa-peer-sub'::text, ARRAY['qa']::text[], false),
 
                 -- superadmin override checks
-                ('seed-locked-by-owner'::text, 'admin-sub'::text, ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[], true)
+                ('seed-locked-by-owner'::text, 'seed-admin-sub'::text, ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[], true)
         ) AS t(slug, subject_sub, subject_roles, expected)
     ),
     evaluated AS (
@@ -89,12 +89,12 @@ BEGIN
         SELECT *
         FROM (
             VALUES
-                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-owner-only'::text, true),
-                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-sub-grant'::text, true),
-                ('{"sub":"alice-sub","roles":[]}'::text, 'seed-role-grant'::text, false),
-                ('{"sub":"qa-user-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, true),
-                ('{"sub":"qa-peer-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, false),
-                ('{"sub":"admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, 'seed-locked-by-owner'::text, true)
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-owner-only'::text, true),
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-sub-grant'::text, true),
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-role-grant'::text, false),
+                ('{"sub":"seed-qa-user-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, true),
+                ('{"sub":"seed-qa-peer-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, false),
+                ('{"sub":"seed-admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, 'seed-locked-by-owner'::text, true)
         ) AS t(claims_json, slug, expected)
     ),
     evaluated AS (
@@ -137,7 +137,7 @@ BEGIN
 
     update_count_cases := jsonb_build_array(
         jsonb_build_object(
-            'subject', 'alice-sub',
+            'subject', 'seed-alice-sub',
             'expected', 2,
             'actual', (
                 SELECT count(*)
@@ -154,7 +154,7 @@ BEGIN
                     d.subs_for_update,
                     d.roles_for_update,
                     d.lock_sub,
-                    'alice-sub',
+                    'seed-alice-sub',
                     ARRAY[]::text[]
                 )
             ),
@@ -166,7 +166,7 @@ BEGIN
                     d.subs_for_update,
                     d.roles_for_update,
                     d.lock_sub,
-                    'alice-sub',
+                    'seed-alice-sub',
                     ARRAY[]::text[]
                 )
                 AND d.slug IN (
@@ -179,7 +179,7 @@ BEGIN
             ) = 2
         ),
         jsonb_build_object(
-            'subject', 'admin-sub',
+            'subject', 'seed-admin-sub',
             'expected', 5,
             'actual', (
                 SELECT count(*)
@@ -196,7 +196,7 @@ BEGIN
                     d.subs_for_update,
                     d.roles_for_update,
                     d.lock_sub,
-                    'admin-sub',
+                    'seed-admin-sub',
                     ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
                 )
             ),
@@ -208,7 +208,7 @@ BEGIN
                     d.subs_for_update,
                     d.roles_for_update,
                     d.lock_sub,
-                    'admin-sub',
+                    'seed-admin-sub',
                     ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
                 )
                 AND d.slug IN (
@@ -231,7 +231,7 @@ BEGIN
     INTO anonymous_visible_count
     FROM ${ADDB_SCHEMA}.document d
     WHERE
-        d.public
+        d.published
         OR ${ADDB_SCHEMA}.can_modify_document_for_subject(
             d.owner_sub,
             d.subs_for_update,
