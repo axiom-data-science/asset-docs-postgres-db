@@ -164,9 +164,15 @@ BEGIN
             --Otherwise, owner will be the current sub
             NEW.owner_sub := current_setting('request.jwt.claims', true)::json->>'sub';
         END IF;
-        -- Reject update to subs_for_update or roles_for_update when not the
-        -- owner of the record
-        IF NEW.owner_sub != current_setting('request.jwt.claims', true)::json->>'sub' THEN
+        -- Reject update to subs_for_update or roles_for_update when
+        -- the curent sub doesn't have permission to modify the document
+        -- Allows admins to share documents as well as owners
+        IF(NOT ${ADDB_SCHEMA}.can_modify_document(
+            NEW.owner_sub,
+            NEW.subs_for_update,
+            NEW.roles_for_update,
+            NEW.lock_sub
+        )) THEN
             IF NEW.subs_for_update <> OLD.subs_for_update and  THEN
                 RAISE EXCEPTION 'Changing "subs_for_update" is not allowed.';
             END IF;
