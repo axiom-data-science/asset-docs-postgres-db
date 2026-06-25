@@ -180,7 +180,7 @@ BEGIN
     END IF;
 
 
-    IF NOT ${ADDB_SCHEMA}_validate_object_type_data() THEN
+    IF NOT ${ADDB_SCHEMA}_validate_object_type_data(NEW.data::json) THEN
         RAISE sqlstate 'PGRST' USING
             message = json_build_object(
                 -- 'code' must be present, and also a string
