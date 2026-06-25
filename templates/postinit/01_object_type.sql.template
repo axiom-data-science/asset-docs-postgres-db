@@ -119,32 +119,35 @@ BEGIN
                         }
                     },
                     "api_overrides": {
-                        "domain": {
-                            "type": "string"
-                        },
-                        "get": {
-                            "type": "object",
-                            "properties": {
-                                "include_jwt": {
-                                    "type": "boolean"
-                                },
-                                "single": {
-                                    "type": "string"
-                                },
-                                "list": {
-                                    "type": "string"
-                                }
-                            }
-                        },
-                        "post" : {
-                            "type": "string",
-                            "mappings": {
+                        "type": "object",
+                        "properties": {
+                            "domain": {
+                                "type": "string"
+                            },
+                            "get": {
                                 "type": "object",
-                                  "additionalProperties": {
+                                "properties": {
+                                    "include_jwt": {
+                                        "type": "boolean"
+                                    },
+                                    "single": {
+                                        "type": "string"
+                                    },
+                                    "list": {
                                         "type": "string"
                                     }
+                                }
+                            },
+                            "post" : {
+                                "type": "string",
+                                "mappings": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                }
+                                                                    
                             }
-                                                                
                         }
                     }
                 }
