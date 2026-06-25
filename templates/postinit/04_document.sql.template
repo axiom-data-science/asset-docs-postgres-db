@@ -373,3 +373,35 @@ WHERE
 
 GRANT SELECT ON ${ADDB_SCHEMA}.document_revision TO ${ADDB_READ_USER};
 GRANT SELECT ON ${ADDB_SCHEMA}.document_revision TO ${ADDB_RW_USER};
+
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(
+	document_uuid uuid,
+    subject_sub text DEFAULT NULL,
+    subject_roles text[] DEFAULT NULL
+) RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+SELECT COALESCE(
+	(
+		SELECT
+			${ADDB_SCHEMA}.can_modify_document_for_subject(
+				d.owner_sub,
+				d.subs_for_update,
+				d.roles_for_update,
+				d.lock_sub,
+				COALESCE(subject_sub, current_setting('request.jwt.claims', true)::json->>'sub'),
+				COALESCE(subject_roles, public.jsonb_array_to_text_array(
+					current_setting('request.jwt.claims', true)::jsonb->'roles'
+				))
+			)
+		FROM ${ADDB_SCHEMA}.document d
+		WHERE d.uuid = document_uuid
+	),
+	false
+);
+$$;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(uuid, text, text[]) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(uuid, text, text[]) TO ${ADDB_RW_USER};
