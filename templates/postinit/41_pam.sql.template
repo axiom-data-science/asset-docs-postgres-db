@@ -37,7 +37,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     true,
     (
         SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = ''pam''
+        WHERE slug = 'pam'
         LIMIT 1
     ),
     '{
@@ -223,7 +223,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     true,
     (
         SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = ''pam''
+        WHERE slug = 'pam'
         LIMIT 1
     ),
     1,
