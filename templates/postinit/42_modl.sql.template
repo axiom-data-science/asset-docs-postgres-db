@@ -1,0 +1,559 @@
+
+-- ============================================================================
+-- MODL (MetOcean Data Lifecycle)
+-- ============================================================================
+
+-- Insert the MODL object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'brian@axiomalaska.com',
+    'MODL',
+    'modl',
+    'document'::${ADDB_SCHEMA}.object_category,
+    'MetOcean Data Lifecycle observations'
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for MODL (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'brian@axiomalaska.com',
+    'modl',
+    'MODL',
+    'Default schema for MODL object type',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = ''modl''
+        LIMIT 1
+    ),
+    '{
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MODL Dataset Metadata Schema",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Unique dataset identifier in ERDDAP e.g., Dominion Wave Buoy, Timeseries Data",
+          "examples": ["South Fork Wind SFW01, Timeseries Data"]
+        },
+        "acknowledgement": {
+          "type": "string",
+          "description": "Acknowlegment of financial supporting entities or award numbers",
+          "examples": [
+            "This dataset is part of a MetOcean Cyberinfrastructure supported by the Integrated Ocean Observing System (IOOS) to streamline integration of data from offshore operations."
+          ]
+        },
+        "comment": {
+          "type": "string",
+          "description": "Used to describe the buoy/platform and contributor",
+          "examples": ["South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"]
+        },
+        "contributor_name": {
+          "type": "string",
+          "description": "Contributor refers to individuals or institutions that contributed to creation of the data. We use for platform deployment/data provider entity",
+          "examples": ["Woods Hole Group"]
+        },
+        "contributor_address": {
+          "type": "string",
+          "description": "physical address or city/state/country",
+          "examples": ["107 Waterhouse Rd, Bourne, MA 02532"]
+        },
+        "contributor_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Contributor website",
+          "examples": ["https://www.woodsholegroup.com/"]
+        },
+        "contributor_email": {
+          "type": "string",
+          "format": "email",
+          "description": "Creator primary contact",
+          "examples": ["dwalsh@woodsholegroup.com"]
+        },
+        "creator_country": {
+          "type": "string",
+          "description": "Creator refers to owner/operator of platform, used here for owner/operator of deployed platform",
+          "examples": ["USA"]
+        },
+        "creator_name": {
+          "type": "string",
+          "description": "Name of creator entity e.g., Coastal Virginia Offshore Wind or Dominion Energy",
+          "examples": ["South Fork Wind"]
+        },
+        "creator_address": {
+          "type": "string",
+          "description": "mailing address",
+          "examples": ["524 Montauk Hwy, Amagansett, NY 11930"]
+        },
+        "creator_state": {
+          "type": "string",
+          "description": "state of operation",
+          "examples": ["New York"]
+        },
+        "creator_URL": {
+          "type": "string",
+          "format": "uri",
+          "description": "Creator website",
+          "examples": ["https://southforkwind.com"]
+        },
+        "creator_email": {
+          "type": "string",
+          "format": "email",
+          "description": "primary contact",
+          "examples": ["info@southforkwind.com"]
+        },
+        "institution": {
+          "type": "string",
+          "description": "Institution name",
+          "examples": [
+            "South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
+          ]
+        },
+        "creator_sector": {
+          "type": "string",
+          "description": "IOOS classifier for sector",
+          "enum": ["gov_state", "nonprofit", "industry", "academic", "gov_federal", "tribal"],
+          "examples": ["industry"]
+        },
+        "geospatial_lat_max": {
+          "type": "number",
+          "description": "Maximum latitude in decimal degrees",
+          "examples": [41.0775]
+        },
+        "geospatial_lat_min": {
+          "type": "number",
+          "description": "Minimum latitude in decimal degrees",
+          "examples": [41.0775]
+        },
+        "geospatial_lon_max": {
+          "type": "number",
+          "description": "Maximum longitude in decimal degrees",
+          "examples": [-71.1855]
+        },
+        "geospatial_lon_min": {
+          "type": "number",
+          "description": "Minimum longitude in decimal degrees",
+          "examples": [-71.1855]
+        },
+        "id": {
+          "type": "string",
+          "description": "Unique Platform/Station ID",
+          "examples": ["SFW01"]
+        },
+        "infoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "Best website for information about program",
+          "examples": ["https://southforkwind.com"]
+        },
+        "license": {
+          "type": "string",
+          "description": "General license language for re-use/access of data in ERDDAP platform",
+          "examples": [
+            "The data may be used and redistributed for free but is not intended for legal use, since it may contain inaccuracies. Neither the data Contributor, Orsted, NOAA, nor the United States Government, nor any of their employees or contractors, makes any warranty, express or implied, including warranties of merchantability and fitness for a particular purpose, or assumes any legal liability for the accuracy, completeness, or usefulness, of this information."
+          ]
+        },
+        "platform_name": {
+          "type": "string",
+          "description": "Project or individual platform",
+          "examples": ["South Fork Wind"]
+        },
+        "processing_level": {
+          "type": "string",
+          "description": "Processing level of data (raw, qc, level 1, etc)",
+          "examples": ["raw dataset, no qc provided"]
+        },
+        "project": {
+          "type": "string",
+          "description": "Name of wind project",
+          "examples": ["South Fork Wind"]
+        },
+        "publisher_country": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["USA"]
+        },
+        "publisher_email": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["devops@rpsgroup.com, info@neracoos.org"]
+        },
+        "publisher_institution": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["MARACOOS, NERACOOS"]
+        },
+        "publisher_name": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["MARACOOS, NERACOOS"]
+        },
+        "publisher_phone": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["(401) 789-6224, (603) 319-1785"]
+        },
+        "publisher_type": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["institution"]
+        },
+        "publisher_url": {
+          "type": "string",
+          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+          "examples": ["https://www.maracoos.org, https://www.neracoos.org"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "Basic summary of dataset - location, platform, variables collected",
+          "examples": [
+            "This dataset contains observations to support further understanding of metocean conditions off the coast of New York, Rhode Island and Southeastern Massachusetts. Data is collected from a floating lidar buoy and the dataset includes  measurements of sea temperature (surface and sea floor), current speed, current direction, wave height, wave direction, and wave period, air temperature, atmospheric pressure, relative humidity, visibility, surface wind speed,  surface wind direction, and surface wind gust."
+          ]
+        },
+        "Instrument": {
+          "type": "string",
+          "description": "Instruments used, varies by variable-  see DP metadata - use at attribute level as component (with each variable) or global (separate by comma)",
+          "examples": [
+            "Campbell Scientific MetSENS 500, Campbell Scientific CS120 Visibility Sensor, Garmin GPS16X-HVS, Seaview SVS-603b, Nortek Aquadopp Profiler Z-Cell 600kHz"
+          ]
+        }
+      },
+      "required": ["title", "id"]
+    }'::jsonb
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default form for MODL (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    form_config,
+    use_form_config
+) VALUES (
+    'brian@axiomalaska.com',
+    'modl',
+    'MODL Dataset Metadata Form',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = ''modl''
+        LIMIT 1
+    ),
+    1,
+    '{
+      "id": "modl-metadata-form",
+      "label": "MODL Dataset Metadata Form",
+      "description": "Form for capturing MODL Dataset Metadata",
+      "wizard_steps": [
+        {
+          "id": "basic-info",
+          "label": "Basic Information",
+          "description": "Essential dataset identification",
+          "fields": [
+            {
+              "prop": "title",
+              "type": "text",
+              "label": "Dataset Title",
+              "description": "Unique dataset identifier in ERDDAP",
+              "required": true,
+              "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
+            },
+            {
+              "prop": "id",
+              "type": "text",
+              "label": "Platform/Station ID",
+              "description": "Unique Platform/Station ID",
+              "required": true,
+              "placeholder": "e.g., SFW01"
+            },
+            {
+              "prop": "platform_name",
+              "type": "text",
+              "label": "Platform Name",
+              "description": "Project or individual platform",
+              "placeholder": "e.g., South Fork Wind"
+            },
+            {
+              "prop": "project",
+              "type": "text",
+              "label": "Project",
+              "description": "Name of wind project",
+              "placeholder": "e.g., South Fork Wind"
+            },
+            {
+              "prop": "summary",
+              "type": "long_text",
+              "label": "Summary",
+              "description": "Basic summary of dataset - location, platform, variables collected",
+              "placeholder": "Describe the dataset, location, platform, and variables collected"
+            }
+          ]
+        },
+        {
+          "id": "creator-info",
+          "label": "Creator Information",
+          "description": "Owner/operator of platform details",
+          "fields": [
+            {
+              "prop": "creator_name",
+              "type": "text",
+              "label": "Creator Name",
+              "description": "Name of creator entity",
+              "placeholder": "e.g., South Fork Wind"
+            },
+            {
+              "prop": "institution",
+              "type": "text",
+              "label": "Institution",
+              "description": "Institution name",
+              "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
+            },
+            {
+              "prop": "creator_address",
+              "type": "text",
+              "label": "Creator Address",
+              "description": "Mailing address",
+              "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
+            },
+            {
+              "prop": "creator_state",
+              "type": "text",
+              "label": "Creator State",
+              "description": "State of operation",
+              "placeholder": "e.g., New York"
+            },
+            {
+              "prop": "creator_country",
+              "type": "text",
+              "label": "Creator Country",
+              "description": "Creator country",
+              "placeholder": "e.g., USA"
+            },
+            {
+              "prop": "creator_email",
+              "type": "text",
+              "label": "Creator Email",
+              "description": "Primary contact email",
+              "placeholder": "e.g., info@southforkwind.com"
+            },
+            {
+              "prop": "creator_URL",
+              "type": "text",
+              "label": "Creator Website",
+              "description": "Creator website URL",
+              "placeholder": "e.g., https://southforkwind.com"
+            },
+            {
+              "prop": "creator_sector",
+              "type": "select",
+              "label": "Creator Sector",
+              "description": "IOOS classifier for sector",
+              "options": [
+                { "label": "State Government", "value": "gov_state" },
+                { "label": "Nonprofit", "value": "nonprofit" },
+                { "label": "Industry", "value": "industry" },
+                { "label": "Academic", "value": "academic" },
+                { "label": "Federal Government", "value": "gov_federal" },
+                { "label": "Tribal", "value": "tribal" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "contributor-info",
+          "label": "Contributor Information",
+          "description": "Platform deployment/data provider entity details",
+          "fields": [
+            {
+              "prop": "contributor_name",
+              "type": "text",
+              "label": "Contributor Name",
+              "description": "Platform deployment/data provider entity",
+              "placeholder": "e.g., Woods Hole Group"
+            },
+            {
+              "prop": "contributor_address",
+              "type": "text",
+              "label": "Contributor Address",
+              "description": "Physical address or city/state/country",
+              "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
+            },
+            {
+              "prop": "contributor_email",
+              "type": "text",
+              "label": "Contributor Email",
+              "description": "Contributor primary contact email",
+              "placeholder": "e.g., dwalsh@woodsholegroup.com"
+            },
+            {
+              "prop": "contributor_url",
+              "type": "text",
+              "label": "Contributor Website",
+              "description": "Contributor website URL",
+              "placeholder": "e.g., https://www.woodsholegroup.com/"
+            }
+          ]
+        },
+        {
+          "id": "publisher-info",
+          "label": "Publisher Information",
+          "description": "Data management at NERACOOS/MARACOOS",
+          "fields": [
+            {
+              "prop": "publisher_name",
+              "type": "text",
+              "label": "Publisher Name",
+              "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+              "placeholder": "e.g., MARACOOS, NERACOOS"
+            },
+            {
+              "prop": "publisher_institution",
+              "type": "text",
+              "label": "Publisher Institution",
+              "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+              "placeholder": "e.g., MARACOOS, NERACOOS"
+            },
+            {
+              "prop": "publisher_email",
+              "type": "text",
+              "label": "Publisher Email",
+              "description": "Publisher contact email",
+              "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
+            },
+            {
+              "prop": "publisher_phone",
+              "type": "text",
+              "label": "Publisher Phone",
+              "description": "Publisher contact phone",
+              "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
+            },
+            {
+              "prop": "publisher_country",
+              "type": "text",
+              "label": "Publisher Country",
+              "description": "Publisher country",
+              "placeholder": "e.g., USA"
+            },
+            {
+              "prop": "publisher_url",
+              "type": "text",
+              "label": "Publisher Website",
+              "description": "Publisher website URL",
+              "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
+            },
+            {
+              "prop": "publisher_type",
+              "type": "text",
+              "label": "Publisher Type",
+              "description": "Type of publisher",
+              "placeholder": "e.g., institution"
+            }
+          ]
+        },
+        {
+          "id": "geospatial-info",
+          "label": "Geospatial Information",
+          "description": "Geographic coordinates",
+          "fields": [
+            {
+              "prop": "geospatial_lat_min",
+              "type": "number",
+              "label": "Minimum Latitude",
+              "description": "Minimum latitude in decimal degrees",
+              "placeholder": "e.g., 41.0775"
+            },
+            {
+              "prop": "geospatial_lat_max",
+              "type": "number",
+              "label": "Maximum Latitude",
+              "description": "Maximum latitude in decimal degrees",
+              "placeholder": "e.g., 41.0775"
+            },
+            {
+              "prop": "geospatial_lon_min",
+              "type": "number",
+              "label": "Minimum Longitude",
+              "description": "Minimum longitude in decimal degrees",
+              "placeholder": "e.g., -71.1855"
+            },
+            {
+              "prop": "geospatial_lon_max",
+              "type": "number",
+              "label": "Maximum Longitude",
+              "description": "Maximum longitude in decimal degrees",
+              "placeholder": "e.g., -71.1855"
+            }
+          ]
+        },
+        {
+          "id": "additional-info",
+          "label": "Additional Information",
+          "description": "Supplementary metadata",
+          "fields": [
+            {
+              "prop": "comment",
+              "type": "long_text",
+              "label": "Comment",
+              "description": "Description of the buoy/platform and contributor",
+              "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
+            },
+            {
+              "prop": "acknowledgement",
+              "type": "long_text",
+              "label": "Acknowledgement",
+              "description": "Acknowledgment of financial supporting entities or award numbers",
+              "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
+            },
+            {
+              "prop": "infoURL",
+              "type": "text",
+              "label": "Information URL",
+              "description": "Best website for information about program",
+              "placeholder": "e.g., https://southforkwind.com"
+            },
+            {
+              "prop": "license",
+              "type": "long_text",
+              "label": "License",
+              "description": "General license language for re-use/access of data",
+              "placeholder": "e.g., The data may be used and redistributed for free..."
+            },
+            {
+              "prop": "processing_level",
+              "type": "text",
+              "label": "Processing Level",
+              "description": "Processing level of data (raw, qc, level 1, etc)",
+              "placeholder": "e.g., raw dataset, no qc provided"
+            },
+            {
+              "prop": "Instrument",
+              "type": "text",
+              "label": "Instrument(s)",
+              "description": "Instruments used (separate by comma if multiple)",
+              "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
+            }
+          ]
+        }
+      ]
+    }'::jsonb,
+    true
+)
+ON CONFLICT (slug) DO NOTHING;
+

@@ -1,0 +1,299 @@
+-- Default object_type, schema and form for ERDDAP
+
+-- ============================================================================
+-- ERDDAP
+-- ============================================================================
+
+-- Insert the ERDDAP object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'brian@axiomalaska.com',
+    'ERDDAP',
+    'erddap',
+    'document'::${ADDB_SCHEMA}.object_category,
+    'ERDDAP dataset metadata and configuration'
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for ERDDAP (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'brian@axiomalaska.com',
+    'erddap',
+    'ERDDAP Schema',
+    'Default schema for ERDDAP object type',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = ''erddap''
+        LIMIT 1
+    ),
+    '{
+      "type": "object",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "geometry": {
+          "type": "object"
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "station-id": {
+          "type": "string"
+        },
+        "conventions": {
+          "type": "string"
+        },
+        "creator_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sample_file": {
+          "type": "object",
+          "properties": {
+            "headers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "data_type": {
+                    "enum": [
+                      "String",
+                      "float"
+                    ],
+                    "type": "string"
+                  },
+                  "cell_units": {
+                    "type": "string"
+                  },
+                  "cell_header": {
+                    "type": "string"
+                  },
+                  "time_format": {
+                    "type": "string"
+                  },
+                  "cell_parameter": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "file_uri": {
+              "type": "string"
+            }
+          }
+        },
+        "creator_name": {
+          "type": "string"
+        },
+        "creator_type": {
+          "type": "string"
+        },
+        "feature_type": {
+          "type": "string"
+        },
+        "cdm_data_type": {
+          "type": "string"
+        },
+        "creator_email": {
+          "type": "string",
+          "format": "email"
+        },
+        "station_label": {
+          "type": "string"
+        },
+        "creator_sector": {
+          "type": "string"
+        },
+        "contributor_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "creator_country": {
+          "type": "string"
+        },
+        "contributor_role": {
+          "type": "string"
+        },
+        "contributor_email": {
+          "type": "string",
+          "format": "email"
+        },
+        "time_coverage_end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "creator_institution": {
+          "type": "string"
+        },
+        "time_coverage_start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "contributor_role_vocabulary": {
+          "type": "string"
+        }
+      }
+    }'::jsonb
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default form for ERDDAP (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    schema_override_config,
+    use_form_config
+) VALUES (
+    'brian@axiomalaska.com',
+    'erddap-form',
+    'ERDDAP Metadata Form',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = ''erddap''
+        LIMIT 1
+    ),
+    1,
+    '{
+      "id": "cfecefbd-fad5-4789-a8fc-ce119e4a1b49",
+      "label": "Basic ERDDAP Metadata",
+      "pages": [
+        {
+          "id": "station-information",
+          "label": "Station Information",
+          "fields": [
+            {
+              "prop": "station-overview",
+              "type": "objectWrapper",
+              "fields": [
+                {
+                  "prop": "station-id"
+                },
+                {
+                  "prop": "station_label"
+                },
+                {
+                  "prop": "feature_type",
+                  "type": "select",
+                  "options": [
+                    {
+                      "label": "Time Series",
+                      "value": "TimeSeries"
+                    }
+                  ],
+                  "defaultValue": "TimeSeries"
+                }
+              ],
+              "layout": "grid2"
+            },
+            {
+              "prop": "geometry",
+              "type": "geometry",
+              "label": "Station Location",
+              "settings": {
+                "drawPointEnabled": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "contact-information",
+          "tabs": [
+            {
+              "id": "creator-information",
+              "label": "Creator Information",
+              "fields": [
+                {
+                  "prop": "creator_institution"
+                },
+                {
+                  "prop": "creator_country"
+                },
+                {
+                  "prop": "creator_name"
+                },
+                {
+                  "prop": "creator_email"
+                },
+                {
+                  "prop": "creator_type"
+                },
+                {
+                  "prop": "creator_sector"
+                },
+                {
+                  "prop": "source_url"
+                }
+              ],
+              "layout": "grid2"
+            },
+            {
+              "id": "contributor-information",
+              "label": "Contributor Information",
+              "fields": [
+                {
+                  "prop": "contributor_email"
+                },
+                {
+                  "prop": "contributor_role"
+                },
+                {
+                  "prop": "contributor_role_vocabulary"
+                },
+                {
+                  "prop": "contributor_url"
+                }
+              ],
+              "layout": "grid2"
+            }
+          ],
+          "label": "Contact Information"
+        },
+        {
+          "id": "file",
+          "label": "Sample File",
+          "fields": [
+            {
+              "prop": "sample_file",
+              "type": "object",
+              "fields": [
+                {
+                  "prop": "sample_file.file_uri",
+                  "type": "custom:csv_upload_for_sample_file"
+                },
+                {
+                  "prop": "sample_file.headers",
+                  "conditions": {
+                    "field": "sample_file.file_uri"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "settings": {
+        "url_navigable": false
+      }
+    }'::jsonb,
+    false
+)
+ON CONFLICT (slug) DO NOTHING;
