@@ -8,3 +8,54 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.relationship (
 );
 
 
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.relationship_insert_update_trigger() RETURNS TRIGGER AS $$
+BEGIN
+    -- Ensure that any relationship isn't already represented by an inverse of
+    -- the same type (we don't want a->has_parent->b when we've already got
+    -- b->has_parent-a)
+
+    IF EXISTS (
+        SELECT
+            1
+        FROM
+            ${ADDB_SCHEMA}.relationship r
+        INNER JOIN
+            ${ADDB_SCHEMA}.predicate p
+        ON
+            r.predicate_uuid = p.uuid
+        WHERE
+            -- a different relationship
+            r.uuid != NEW.uuid AND
+            -- that is marked as directional
+            p.directional is TRUE AND
+            -- and has the from/to documents reversed
+            r.from_document_uuid = NEW.to_document_uuid AND
+            r.to_document_uuid = NEW.from_document_uuid
+    ) THEN
+        RAISE sqlstate 'PGRST' USING
+            message = json_build_object(
+                -- 'code' must be present, and also a string
+                'code', 'PT400',
+                'message', 'relationship_uniqueness_violation',
+                'details', 'directed relationship already inversely represented'
+            ),
+            detail = json_build_object(
+                -- 'status' must be present, and a number
+                'status', 400,
+                -- 'header' must also be present, and an empty object
+                'headers', '{}'::json
+            );
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE TRIGGER trg_${ADDB_SCHEMA}_relationship_update_trigger
+BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.relationship
+FOR EACH ROW
+EXECUTE FUNCTION ${ADDB_SCHEMA}.relationship_insert_update_trigger();
