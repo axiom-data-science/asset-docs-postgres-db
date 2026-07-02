@@ -118,7 +118,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE TRIGGER trg_${ADDB_SCHEMA}_predicate_update_trigger
+CREATE OR REPLACE TRIGGER trg_${ADDB_SCHEMA}_predicate_insert_update_trigger
 BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.predicate
 FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}.predicate_insert_update_trigger();
