@@ -1,3 +1,4 @@
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'object_category') THEN
@@ -89,11 +90,11 @@ USING (
     )
 );
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_validate_object_type_data(data: json) RETURNS boolean AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_validate_object_type_data(data json) RETURNS boolean AS $func$
 BEGIN
     IF jsonb_matches_schema(
         (
-            $$
+            $json$
             {
                 "type": "object",
                 "additionalProperties": true,
@@ -152,7 +153,7 @@ BEGIN
                     }
                 }
             }
-            $$
+            $json$
         )::json,
         (data)::jsonb
     ) THEN 
@@ -161,7 +162,7 @@ BEGIN
         RETURN FALSE;
     END IF;
 END;
-$$ LANGUAGE plpgsql;
+$func$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger() RETURNS TRIGGER AS $$
 BEGIN
@@ -183,15 +184,14 @@ BEGIN
     END IF;
 
 
-    IF NOT ${ADDB_SCHEMA}_validate_object_type_data(NEW.data::json) THEN
+    IF NEW.data IS NOT NULL AND NOT ${ADDB_SCHEMA}_validate_object_type_data(NEW.data::json) THEN
         RAISE sqlstate 'PGRST' USING
             message = json_build_object(
                 -- 'code' must be present, and also a string
                 'code', 'PT400',
                 'message', 'json_data_invalid',
-                'details', 'JSON data is invalid according to the object type schema',
-                )::text
-            ),
+                'details', 'JSON data is invalid according to the object type schema'
+                )::text,
             detail = json_build_object(
                 -- 'status' must be present, and a number
                 'status', 400,
