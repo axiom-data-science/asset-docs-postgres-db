@@ -126,4 +126,5 @@ EXECUTE FUNCTION ${ADDB_SCHEMA}.predicate_insert_update_trigger();
 
 INSERT INTO ${ADDB_SCHEMA}.predicate (predicate, label, inverse_predicate, inverse_label, is_directional) VALUES
   ('has_parent', 'has parent', 'has_child', 'has child', true),
-  ('is_related_to', 'is related to', NULL, NULL, false);
+  ('is_related_to', 'is related to', NULL, NULL, false)
+ON CONFLICT DO NOTHING;
