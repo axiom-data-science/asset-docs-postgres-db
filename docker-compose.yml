@@ -105,3 +105,23 @@ services:
       postinit:
         condition: service_completed_successfully
         restart: true
+
+  locust:
+    image: "asset-docs-locust:latest"
+    # only invoked for testing profile, not be default
+    profiles:
+     - testing
+    build:
+      context:    .
+      dockerfile: Dockerfile.locust
+    environment:
+     - ACCESS_TOKEN
+     - ASSET_DOCS_POSTGREST_URL="http://postgrest:3000"
+    ports:
+      - "8089:8089"
+    volumes:
+     - ./test/locust.py:/opt/asset_docs_postgres_db/test/locust.py
+    depends_on:
+      postgrest:
+        condition: service_started
+        restart: false

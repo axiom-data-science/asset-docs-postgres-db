@@ -1,0 +1,29 @@
+FROM mambaorg/micromamba:2.6-debian13-slim
+LABEL org.opencontainers.image.authors="Asset Docs <josh@axds.co>"
+LABEL org.opencontainers.image.url="http://git.axiom/axiom/asset-docs-postgres-db/"
+LABEL org.opencontainers.image.source="http://git.axiom/axiom/asset-docs-postgres-db/"
+LABEL org.opencontainers.image.licenses="MIT"
+
+USER root
+RUN apt-get update -qq && \
+	apt-get install -qq -y \
+	git \
+	&& apt-get autoremove && \
+	apt-get autoclean && \
+    rm -rf /var/lib/apt/lists/*
+
+USER $MAMBA_USER
+
+ENV PROJECT_NAME=asset_docs_postgres_db
+ENV PROJECT_ROOT=/opt/asset_docs_postgres_db
+
+COPY --chown=$MAMBA_USER:$MAMBA_USER environment.dev.yml /tmp/environment.dev.yml
+RUN micromamba install -y -n base -f /tmp/environment.dev.yml && \
+    micromamba clean --all --yes && \
+    rm /tmp/environment.dev.yml
+
+COPY --chown=$MAMBA_USER:$MAMBA_USER test $PROJECT_ROOT/test
+
+WORKDIR $PROJECT_ROOT/
+
+CMD locust -f ./test/locust.py
