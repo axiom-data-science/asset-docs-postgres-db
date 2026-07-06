@@ -70,10 +70,7 @@ services:
     volumes:
       - "./templates/postinit/:/templates"
     command: >
-      sh -c "/usr/local/bin/env.sh /templates &&
-      pg_isready --host db -U '${ADDB_OWNER_USER}' --dbname '${ADDB_DB_NAME}' --timeout 5 &&
-      find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | xargs -I xyz psql -v ON_ERROR_STOP=1 --host db -U '${ADDB_OWNER_USER}' --dbname '${ADDB_DB_NAME}' -f xyz;
-      find /templates/ -maxdepth 1 -type f -iname '*.sql' -delete"
+      /usr/local/bin/run_templates.sh /templates
 
   postgrest:
     image: "postgrest/postgrest:v13.0.4"

@@ -96,6 +96,10 @@ RUN mkdir /templates \
 COPY --chown=postgres:postgres templates/postinit/*.template /templates/
 COPY --chown=postgres:postgres templates/initdb.sh.template /docker-entrypoint-initdb.d/99_initdb.sh.template
 
+# Copies the in-order template runner to be ran during init steps
+COPY ./docker/run_templates.sh /usr/local/bin/run_templates.sh
+RUN chmod ug=rwx,o=rx /usr/local/bin/run_templates.sh
+
 WORKDIR /
 
 # Runs as root for init, then drops into postgres
