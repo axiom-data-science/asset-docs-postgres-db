@@ -27,7 +27,15 @@ WITH CHECK (
     (
         current_setting('request.jwt.claims', true) IS NOT NULL AND
         current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        (
+            (
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "from_document_uuid" )
+                AND
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "to_document_uuid" )
+            )
+            OR
+            public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        )
     )
 );
 
@@ -39,7 +47,15 @@ USING (
     (
         current_setting('request.jwt.claims', true) IS NOT NULL AND
         current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        (
+            (
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "from_document_uuid" )
+                AND
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "to_document_uuid" )
+            )
+            OR
+            public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        )
     )
 )
 -- update policy requires both USING *and* WITH_CHECK, as the USING
@@ -50,7 +66,15 @@ WITH CHECK (
     (
         current_setting('request.jwt.claims', true) IS NOT NULL AND
         current_setting('request.jwt.claims', true)::json->>'sub' IS NOT NULL AND
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        (
+            (
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "from_document_uuid" )
+                AND
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "to_document_uuid" )
+            )
+            OR
+            public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
+        )
     )
 );
 
@@ -61,8 +85,13 @@ FOR DELETE
 USING (
     (
         current_setting('request.jwt.claims', true) IS NOT NULL AND
-        -- User is marked as superadmin
         (
+            (
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "from_document_uuid" )
+                AND
+                ${ADDB_SCHEMA}.can_modify_document_by_uuid( "to_document_uuid" )
+            )
+            OR
             public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
         )
     )
