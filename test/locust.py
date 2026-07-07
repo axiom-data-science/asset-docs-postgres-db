@@ -324,3 +324,219 @@ class LocustUser(HttpUser):
         logging.warning(
             f"# intersecting documents:{len(ret['docs'])}"
         )
+
+    @task
+    def test_create_new_documents_with_relationship(self):
+
+        object_type_get_resp = self.client.get(
+            "/object_type",
+            params={
+                "slug": "eq.dummy_object_type"
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation"
+            },
+            name="get_object_type"
+        )
+
+        object_type_get_resp.raise_for_status()
+
+        dummy_object_type = next( iter( object_type_get_resp.json() ), None )
+
+        if dummy_object_type is None:
+
+            new_object_type_get_resp = self.client.post(
+                "/object_type",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {ACCESS_TOKEN}",
+                    "Prefer": "return=representation,resolution=ignore-duplicates"
+                },
+                json={
+                    "label": "dummy object description",
+                    "slug": "dummy_object_type",
+                },
+                name="post_object_type"
+            )
+
+            try:
+                new_object_type_get_resp.raise_for_status()
+            except Exception as exc:
+                logging.warning( new_object_type_get_resp.text )
+                raise exc
+
+            dummy_object_type = next( iter( new_object_type_get_resp.json() ), None )
+
+        object_schema_get_resp = self.client.get(
+            "/object_schema",
+            params={
+                "slug": "eq.dummy_object_schema"
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation"
+            },
+            name="get_object_schema"
+        )
+
+        dummy_object_schema = None
+
+        object_schema_get_resp.raise_for_status()
+
+        dummy_object_schema = next( iter( object_schema_get_resp.json() ), None )
+
+        if dummy_object_schema is None:
+            new_object_schema_get_resp = self.client.post(
+                "/object_schema",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {ACCESS_TOKEN}",
+                    "Prefer": "return=representation,resolution=ignore-duplicates"
+                },
+                json={
+                    "slug": "dummy_object_schema",
+                    "label": "dummy object schema",
+                    "object_type_uuid": dummy_object_type['uuid'],
+                    "json_schema": {
+                        "$schema": "http://json-schema.org/draft-07/schema#",
+                        "title": "Dummy schema",
+                        "type": "object",
+                    }
+                },
+                name="post_object_schema"
+            )
+
+            try:
+                new_object_schema_get_resp.raise_for_status()
+            except Exception as exc:
+                logging.warning( new_object_schema_get_resp.text )
+                raise exc
+
+            dummy_object_schema = next( iter( new_object_schema_get_resp.json() ), None )
+
+        first_post_resp = self.client.post(
+            "/document_for_update",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation,resolution=ignore-duplicates"
+            },
+            json={
+                "label": 'related document 1',
+                "data": {
+                    "hi": "there"
+                },
+                "object_type_uuid": dummy_object_type['uuid'],
+            },
+            name="post_first_related_document"
+        )
+
+        try:
+            first_post_resp.raise_for_status()
+        except Exception as exc:
+            logging.warning( first_post_resp.text )
+            raise exc
+
+        dummy_first_document = next( iter( first_post_resp.json() ), None )
+
+        second_post_resp = self.client.post(
+            "/document_for_update",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation,resolution=ignore-duplicates"
+            },
+            json={
+                "label": 'related document 2',
+                "data": {
+                    "hi": "there"
+                },
+                "object_type_uuid": dummy_object_type['uuid'],
+            },
+            name="post_second_related_document"
+        )
+
+        try:
+            second_post_resp.raise_for_status()
+        except Exception as exc:
+            logging.warning( second_post_resp.text )
+            raise exc
+
+        dummy_second_document = next( iter( second_post_resp.json() ), None )
+
+        predicate_get_resp = self.client.get(
+            "/predicate",
+            params={
+                "predicate": "eq.has_parent"
+            },
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation"
+            },
+            name="get_has_parent_predicate"
+        )
+
+        try:
+            predicate_get_resp.raise_for_status()
+        except Exception as exc:
+            logging.warning( predicate_get_resp.text )
+            raise exc
+
+
+        dummy_has_parent_predicate = next( iter( predicate_get_resp.json() ), None )
+
+        relate_post_resp = self.client.post(
+            "/relationship",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}"
+            },
+            json={
+                "from_document_uuid": dummy_first_document['uuid'],
+                "to_document_uuid": dummy_second_document['uuid'],
+                # Empty for now
+                "data": {},
+                "predicate_uuid": dummy_has_parent_predicate['uuid'],
+            },
+            name="post_relate_two_documents"
+        )
+
+        try:
+            relate_post_resp.raise_for_status()
+        except Exception as exc:
+            logging.warning( relate_post_resp.text )
+            raise exc
+
+
+        with self.client.post(
+            "/relationship",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}"
+            },
+            json={
+                "from_document_uuid": dummy_second_document['uuid'],
+                "to_document_uuid": dummy_first_document['uuid'],
+                # Empty for now
+                "data": {},
+                "predicate_uuid": dummy_has_parent_predicate['uuid'],
+            },
+            name="post_inverse_relate_two_documents",
+            catch_response=True
+        ) as inverse_relate_post_resp:
+
+            try:
+                assert 400 == inverse_relate_post_resp.status_code, \
+                    (
+                        "Must return 400 Bad Request on inverse attempt, got "
+                        f"{inverse_relate_post_resp.status_code} status instead"
+                    )
+
+                inverse_relate_post_resp.success()
+            except Exception as exc:
+                logging.warning( inverse_relate_post_resp.text )
+                raise exc
