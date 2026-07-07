@@ -9,6 +9,8 @@ TEMPLATES_DIR="$1"
 ADDB_OWNER_USER=${ADDB_OWNER_USER:-}
 ADDB_DB_NAME=${ADDB_DB_NAME:-}
 
+ADDB_ENABLE_MOCK_DATA=${ADDB_ENABLE_MOCK_DATA:-false}
+
 if [ -z "$ADDB_OWNER_USER" ]; then
     echo "ADDB_OWNER_USER is unset";
     exit 2;
@@ -32,8 +34,20 @@ if ! pg_isready --host db -U "${ADDB_OWNER_USER}" --dbname "${ADDB_DB_NAME}" --t
     exit 5;
 fi
 
-find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | while read -r line; do
-    echo "Executing $line";
+while read -r line; do
+
+    BN=$( basename "$line" );
+
+    # Check whether this has the 6x prefix for inserting mock data
+    if echo "$BN" | grep -e "^6[0-9]\+" > /dev/null; then
+        if  [ "$ADDB_ENABLE_MOCK_DATA" != "true" ]; then
+            echo "Not inserting mock data, skipping $BN" 1>&2;
+            rm "$line";
+            continue
+        fi
+    fi
+
+    echo "Executing $BN";
     psql -v ON_ERROR_STOP=1 --host db -U "${ADDB_OWNER_USER}" --dbname "${ADDB_DB_NAME}" -f "$line";
     PSQL_RET=$?;
     rm "$line";
@@ -43,8 +57,8 @@ find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | while read -r li
         find "$TEMPLATES_DIR" -maxdepth 1 -type f -iname '*.sql' -delete
         exit 6;
     fi
-done;
+done < <( find "$TEMPLATES_DIR" -maxdepth 1 -type f -iname '*.sql' | sort -n )
 
-echo "Final .sql file cleanup" 1>&2;
+echo "Template execution successful, doing final .sql file cleanup" 1>&2;
 # Finally, clear any remaining .sql files generated from the templates
 find "$TEMPLATES_DIR" -maxdepth 1 -type f -iname '*.sql' -delete

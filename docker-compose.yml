@@ -53,6 +53,7 @@ services:
       - ADDB_DB_NAME
       - ADDB_OWNER_USER
       - ADDB_PASSWORD
+      - ADDB_ENABLE_MOCK_DATA
       - ADDB_POSTGREST_USER
       - ADDB_POSTGREST_USER_PASSWORD
       - ADDB_READ_USER
@@ -63,6 +64,7 @@ services:
       - ADDB_SUPERADMIN_ENTITLEMENT
       # psql to use PGPASSWORD env var instead of requiring user input
       - PGPASSWORD=${ADDB_PASSWORD}
+      - ADDB_ENABLE_MOCK_DATA=${ADDB_ENABLE_MOCK_DATA:-false}
     depends_on:
       db:
         condition: service_healthy

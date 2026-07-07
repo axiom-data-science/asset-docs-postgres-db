@@ -123,8 +123,37 @@ BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.predicate
 FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}.predicate_insert_update_trigger();
 
+CREATE TEMPORARY TABLE predicate_temp
+(
+    LIKE ${ADDB_SCHEMA}.predicate
+    INCLUDING CONSTRAINTS
+    INCLUDING DEFAULTS
+    INCLUDING GENERATED
+);
 
-INSERT INTO ${ADDB_SCHEMA}.predicate (predicate, label, inverse_predicate, inverse_label, is_directional) VALUES
+INSERT INTO predicate_temp (predicate, label, inverse_predicate, inverse_label, is_directional) VALUES
   ('has_parent', 'has parent', 'has_child', 'has child', true),
   ('is_related_to', 'is related to', NULL, NULL, false)
-ON CONFLICT DO NOTHING;
+;
+
+INSERT INTO ${ADDB_SCHEMA}.predicate
+(
+    predicate,
+    label,
+    inverse_predicate,
+    inverse_label,
+    is_directional
+)
+SELECT
+    predicate,
+    label,
+    inverse_predicate,
+    inverse_label,
+    is_directional
+FROM
+    predicate_temp pt
+WHERE pt.predicate NOT IN (
+    SELECT p.predicate FROM ${ADDB_SCHEMA}.predicate p
+);
+
+DROP TABLE predicate_temp;

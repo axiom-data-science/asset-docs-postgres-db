@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
     "label" varchar(256) NOT NULL DEFAULT '',
     "description" text NOT NULL DEFAULT '',
     "comments" text NOT NULL DEFAULT '',
+    "published" boolean NOT NULL DEFAULT false,
+    "published_at" timestamptz NULL,
     "object_type_uuid" uuid REFERENCES ${ADDB_SCHEMA}.object_type(uuid) ON DELETE SET NULL,
     CONSTRAINT document_pkey PRIMARY KEY (uuid)
 );
@@ -47,6 +49,30 @@ CREATE INDEX IF NOT EXISTS asset_docs_typ_slug_idx ON ${ADDB_SCHEMA}.document (o
 ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS geom geometry NULL;
 
+-- Old view definitions can depend on legacy document columns. Drop and
+-- recreate them later so column migrations can run safely.
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_with_permissions;
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_for_update;
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_revision;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+DROP COLUMN IF EXISTS "public";
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "published" boolean NULL DEFAULT false;
+
+UPDATE ${ADDB_SCHEMA}.document SET "published" = false WHERE "published" IS NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ALTER COLUMN "published" SET NOT NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "published_at" timestamptz NULL;
+
+UPDATE ${ADDB_SCHEMA}.document
+SET published_at = now()
+WHERE published AND published_at IS NULL;
+
 DROP INDEX IF EXISTS asset_docs_geom_idx;
 CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (geom);
 
@@ -61,33 +87,15 @@ NOT table_version.ver_is_table_versioned('${ADDB_SCHEMA}', 'document');
 DROP POLICY IF EXISTS document_policy_select ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_select ON ${ADDB_SCHEMA}.document
 FOR SELECT
---  All documents publicly SELECTable if no sub/role requirement,
--- otherwise the subs_for_select or roles_for_select indicate a required
--- sub/role for the record.
+--  Published documents are SELECTable by everyone. Non-published documents are
+--  SELECTable only for users with modify-level permission.
 USING (
-    (
-    owner_sub IS NOT NULL
-    AND (
-        (
-        --no sub or role requirement for record
-        subs_for_select = '[]'::jsonb AND roles_for_select = '[]'::jsonb
-        )
-        OR
-        (
-        -- user is current owner
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        )
-        OR
-        (
-        --meets sub or requirement for record
-        subs_for_select::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        )
-        OR
-        (
-        --meets role requirement for record
-        roles_for_select::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        )
-    )
+    "published"
+    OR ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 );
 
@@ -108,39 +116,11 @@ CREATE POLICY document_policy_update ON ${ADDB_SCHEMA}.document
 FOR UPDATE
 --  documents UPDATEable if no JWT claims, or if claim's sub matches owner
 USING (
-    (
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-        -- User is the proper owner
-        (
-        owner_sub IS NOT NULL AND
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is included in the subs_for_update
-        (
-        subs_for_update IS NOT NULL AND
-        subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        ) OR
-        -- User's roles intersect with roles_for_update
-        (
-        roles_for_update IS NOT NULL AND
-        roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    ) AND
-    (
-        lock_sub IS NULL OR
-        (
-        lock_sub IS NOT NULL AND lock_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is marked as ${ADDB_SUPERADMIN_ENTITLEMENT} superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 )
 -- update policy requires both USING *and* WITH_CHECK, as the USING
@@ -148,39 +128,11 @@ USING (
 -- WITH_CHECK determines if the new updates fit with the policy (after
 -- being approved by the USING expression)
 WITH CHECK (
-    (
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-        -- User is the proper owner
-        (
-        owner_sub IS NOT NULL AND
-        owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is included in the subs_for_update
-        (
-        subs_for_update IS NOT NULL AND
-        subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-        ) OR
-        -- User's roles intersect with roles_for_update
-        (
-        roles_for_update IS NOT NULL AND
-        roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    ) AND
-    (
-        lock_sub IS NULL OR
-        (
-        lock_sub IS NOT NULL AND lock_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-        ) OR
-        -- User is marked as superadmin
-        (
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-        )
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 );
 
@@ -212,9 +164,15 @@ BEGIN
             --Otherwise, owner will be the current sub
             NEW.owner_sub := current_setting('request.jwt.claims', true)::json->>'sub';
         END IF;
-        -- Reject update to subs_for_update or roles_for_update when not the
-        -- owner of the record
-        IF NEW.owner_sub != current_setting('request.jwt.claims', true)::json->>'sub' THEN
+        -- Reject update to subs_for_update or roles_for_update when
+        -- the curent sub doesn't have permission to modify the document
+        -- Allows admins to share documents as well as owners
+        IF(NOT ${ADDB_SCHEMA}.can_modify_document(
+            NEW.owner_sub,
+            NEW.subs_for_update,
+            NEW.roles_for_update,
+            NEW.lock_sub
+        )) THEN
             IF NEW.subs_for_update <> OLD.subs_for_update and  THEN
                 RAISE EXCEPTION 'Changing "subs_for_update" is not allowed.';
             END IF;
@@ -237,6 +195,27 @@ BEGIN
 
     IF OLD.lock_sub IS NOT NULL AND NEW.lock_sub IS NULL THEN
         NEW.locked_at = null;
+    END IF;
+
+    -- Maintain published_at from published state.
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.published THEN
+            NEW.published_at = COALESCE(NEW.published_at, now());
+        ELSE
+            NEW.published_at = NULL;
+        END IF;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.published IS DISTINCT FROM OLD.published THEN
+            IF NEW.published THEN
+                NEW.published_at = now();
+            ELSE
+                NEW.published_at = NULL;
+            END IF;
+        ELSIF NEW.published AND NEW.published_at IS NULL THEN
+            NEW.published_at = COALESCE(OLD.published_at, now());
+        ELSIF NOT NEW.published THEN
+            NEW.published_at = NULL;
+        END IF;
     END IF;
 
     IF NEW.slug IS NULL THEN
@@ -320,30 +299,35 @@ CHECK (
 DROP INDEX IF EXISTS asset_docs_owner_sub_idx;
 CREATE INDEX IF NOT EXISTS asset_docs_owner_sub_idx ON ${ADDB_SCHEMA}.document (owner_sub);
 
-CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_for_update with (security_barrier) as (
+-- Use security_invoker so base-table RLS evaluates as the caller, not the
+-- view owner. This prevents private rows from leaking via view access.
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_with_permissions with (security_barrier, security_invoker = true) as (
+SELECT
+    d.*,
+    ${ADDB_SCHEMA}.can_modify_document(
+        d.owner_sub,
+        d.subs_for_update,
+        d.roles_for_update,
+        d.lock_sub
+    ) AS can_modify
+FROM
+    ${ADDB_SCHEMA}.document d
+);
+
+GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_READ_USER};
+GRANT SELECT ON ${ADDB_SCHEMA}.document_with_permissions TO ${ADDB_RW_USER};
+
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_for_update with (security_barrier, security_invoker = true) as (
 SELECT
     d.*
 FROM
     ${ADDB_SCHEMA}.document d
 WHERE
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    (
-    d.owner_sub = current_setting('request.jwt.claims', true)::json->>'sub'
-    or
-    (
-        d.subs_for_update IS NOT NULL AND
-        d.subs_for_update::jsonb ? (current_setting('request.jwt.claims', true)::json->>'sub')::text
-    )
-    or
-    (
-        d.roles_for_update IS NOT NULL AND
-        d.roles_for_update::jsonb ?| public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' )
-    )
-    or
-    (
-        -- User is marked as superadmin
-        public.jsonb_array_to_text_array( current_setting('request.jwt.claims', true)::jsonb->'roles' ) @> array['${ADDB_SUPERADMIN_ENTITLEMENT}']
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        d.owner_sub,
+        d.subs_for_update,
+        d.roles_for_update,
+        d.lock_sub
     )
 );
 
@@ -351,7 +335,7 @@ WHERE
 GRANT SELECT ON table_version.asset_docs_document_revision TO ${ADDB_READ_USER};
 GRANT SELECT ON table_version.asset_docs_document_revision TO ${ADDB_RW_USER};
 
-CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_revision with (security_barrier) as (
+CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.document_revision with (security_barrier, security_invoker = true) as (
 SELECT
     dr.*
 FROM
@@ -389,3 +373,35 @@ WHERE
 
 GRANT SELECT ON ${ADDB_SCHEMA}.document_revision TO ${ADDB_READ_USER};
 GRANT SELECT ON ${ADDB_SCHEMA}.document_revision TO ${ADDB_RW_USER};
+
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(
+	document_uuid uuid,
+    subject_sub text DEFAULT NULL,
+    subject_roles text[] DEFAULT NULL
+) RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+SELECT COALESCE(
+	(
+		SELECT
+			${ADDB_SCHEMA}.can_modify_document_for_subject(
+				d.owner_sub,
+				d.subs_for_update,
+				d.roles_for_update,
+				d.lock_sub,
+				COALESCE(subject_sub, current_setting('request.jwt.claims', true)::json->>'sub'),
+				COALESCE(subject_roles, public.jsonb_array_to_text_array(
+					current_setting('request.jwt.claims', true)::jsonb->'roles'
+				))
+			)
+		FROM ${ADDB_SCHEMA}.document d
+		WHERE d.uuid = document_uuid
+	),
+	false
+);
+$$;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(uuid, text, text[]) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.can_modify_document_by_uuid(uuid, text, text[]) TO ${ADDB_RW_USER};

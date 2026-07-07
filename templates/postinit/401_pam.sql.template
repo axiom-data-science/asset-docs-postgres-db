@@ -1,0 +1,441 @@
+-- Default object_type, schema and form for PAM (Passive Acoustic Monitoring)
+
+-- ============================================================================
+-- PAM (Passive Acoustic Monitoring)
+-- ============================================================================
+
+-- Insert the PAM object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'brian@axiomalaska.com',
+    'PAM',
+    'pam',
+    'document'::${ADDB_SCHEMA}.object_category,
+    'Passive Acoustic Monitoring bioacoustic data and analysis'
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for PAM (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'brian@axiomalaska.com',
+    'pam',
+    'PAM Bioacoustic Schema',
+    'Default schema for PAM object type with Makara bioacoustic metadata',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'pam'
+        LIMIT 1
+    ),
+    '{
+      "type": "object",
+      "title": "PAM Bioacoustic Metadata Schema",
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "deployments": {
+          "type": "array",
+          "title": "Deployments",
+          "description": "Acoustic monitoring deployment information",
+          "items": {
+            "type": "object",
+            "properties": {
+              "deployment_id": {"type": "string", "title": "Deployment ID"},
+              "location": {"type": "string", "title": "Location"},
+              "start_date": {"type": "string", "format": "date", "title": "Start Date"},
+              "end_date": {"type": "string", "format": "date", "title": "End Date"},
+              "latitude": {"type": "number", "title": "Latitude"},
+              "longitude": {"type": "number", "title": "Longitude"},
+              "depth_meters": {"type": "number", "title": "Depth (meters)"},
+              "habitat_type": {"type": "string", "title": "Habitat Type"}
+            }
+          }
+        },
+        "recordings": {
+          "type": "array",
+          "title": "Recordings",
+          "description": "Audio recording metadata",
+          "items": {
+            "type": "object",
+            "properties": {
+              "recording_id": {"type": "string", "title": "Recording ID"},
+              "deployment_id": {"type": "string", "title": "Deployment ID"},
+              "timestamp": {"type": "string", "format": "date-time", "title": "Timestamp"},
+              "duration_seconds": {"type": "number", "title": "Duration (seconds)"},
+              "sample_rate_hz": {"type": "number", "title": "Sample Rate (Hz)"},
+              "bit_depth": {"type": "integer", "title": "Bit Depth"},
+              "file_format": {"type": "string", "title": "File Format", "enum": ["WAV", "MP3", "FLAC", "other"]},
+              "file_size_mb": {"type": "number", "title": "File Size (MB)"},
+              "quality_flag": {"type": "string", "title": "Quality Flag"}
+            }
+          }
+        },
+        "analyses": {
+          "type": "array",
+          "title": "Analyses",
+          "description": "Signal processing and analysis performed",
+          "items": {
+            "type": "object",
+            "properties": {
+              "analysis_id": {"type": "string", "title": "Analysis ID"},
+              "recording_id": {"type": "string", "title": "Recording ID"},
+              "analysis_type": {"type": "string", "title": "Analysis Type", "enum": ["spectrogram", "frequency_analysis", "event_detection", "classification", "source_localization", "other"]},
+              "analysis_software": {"type": "string", "title": "Analysis Software"},
+              "software_version": {"type": "string", "title": "Software Version"},
+              "analysis_parameters": {"type": "object", "title": "Analysis Parameters"},
+              "analyst_name": {"type": "string", "title": "Analyst Name"},
+              "analysis_date": {"type": "string", "format": "date", "title": "Analysis Date"}
+            }
+          }
+        },
+        "detections": {
+          "type": "array",
+          "title": "Detections",
+          "description": "Acoustic event detections and classifications",
+          "items": {
+            "type": "object",
+            "properties": {
+              "detection_id": {"type": "string", "title": "Detection ID"},
+              "analysis_id": {"type": "string", "title": "Analysis ID"},
+              "species": {"type": "string", "title": "Species"},
+              "call_type": {"type": "string", "title": "Call Type"},
+              "start_time_seconds": {"type": "number", "title": "Start Time (seconds)"},
+              "end_time_seconds": {"type": "number", "title": "End Time (seconds)"},
+              "start_frequency_hz": {"type": "number", "title": "Start Frequency (Hz)"},
+              "end_frequency_hz": {"type": "number", "title": "End Frequency (Hz)"},
+              "confidence": {"type": "number", "title": "Confidence (0-1)", "minimum": 0, "maximum": 1},
+              "signal_to_noise_ratio_db": {"type": "number", "title": "Signal-to-Noise Ratio (dB)"},
+              "comments": {"type": "string", "title": "Comments"}
+            }
+          }
+        },
+        "support": {
+          "type": "object",
+          "title": "Supporting Information",
+          "description": "Related resources and infrastructure",
+          "properties": {
+            "devices": {
+              "type": "array",
+              "title": "Devices",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "device_id": {"type": "string", "title": "Device ID"},
+                  "device_type": {"type": "string", "title": "Device Type"},
+                  "manufacturer": {"type": "string", "title": "Manufacturer"},
+                  "model": {"type": "string", "title": "Model"},
+                  "serial_number": {"type": "string", "title": "Serial Number"}
+                }
+              }
+            },
+            "projects": {
+              "type": "array",
+              "title": "Associated Projects",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "project_id": {"type": "string", "title": "Project ID"},
+                  "project_name": {"type": "string", "title": "Project Name"},
+                  "principal_investigator": {"type": "string", "title": "Principal Investigator"},
+                  "funding_agency": {"type": "string", "title": "Funding Agency"}
+                }
+              }
+            },
+            "sites": {
+              "type": "array",
+              "title": "Study Sites",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "site_id": {"type": "string", "title": "Site ID"},
+                  "site_name": {"type": "string", "title": "Site Name"},
+                  "site_code": {"type": "string", "title": "Site Code"},
+                  "region": {"type": "string", "title": "Region"}
+                }
+              }
+            }
+          }
+        },
+        "qaqc": {
+          "type": "object",
+          "title": "Quality Assurance / Quality Control",
+          "description": "Data quality information",
+          "properties": {
+            "calibration_date": {"type": "string", "format": "date", "title": "Calibration Date"},
+            "calibration_standard": {"type": "string", "title": "Calibration Standard"},
+            "noise_floor_db": {"type": "number", "title": "Noise Floor (dB)"},
+            "dynamic_range_db": {"type": "number", "title": "Dynamic Range (dB)"},
+            "data_gaps": {"type": "string", "title": "Data Gaps Description"},
+            "data_issues": {"type": "string", "title": "Known Data Issues"},
+            "validation_status": {"type": "string", "title": "Validation Status", "enum": ["unchecked", "passed", "failed", "conditional"]}
+          }
+        },
+        "tracks": {
+          "type": "array",
+          "title": "Acoustic Tracks",
+          "description": "Individual tracked acoustic events",
+          "items": {
+            "type": "object",
+            "properties": {
+              "track_id": {"type": "string", "title": "Track ID"},
+              "detection_ids": {"type": "array", "title": "Associated Detection IDs", "items": {"type": "string"}},
+              "track_type": {"type": "string", "title": "Track Type"},
+              "species": {"type": "string", "title": "Species"},
+              "individual_id": {"type": "string", "title": "Individual ID (if identifiable)"},
+              "start_time": {"type": "string", "format": "date-time", "title": "Start Time"},
+              "end_time": {"type": "string", "format": "date-time", "title": "End Time"},
+              "track_notes": {"type": "string", "title": "Track Notes"}
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    }'::jsonb
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default form for PAM (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    form_config,
+    use_form_config
+) VALUES (
+    'brian@axiomalaska.com',
+    'pam-form',
+    'PAM Bioacoustic Metadata Form',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'pam'
+        LIMIT 1
+    ),
+    1,
+    '{
+      "id": "pam-bioacoustic-form",
+      "label": "PAM Bioacoustic Metadata Form",
+      "description": "Comprehensive form for capturing PAM bioacoustic data and analysis",
+      "pages": [
+        {
+          "id": "deployments",
+          "label": "Deployments",
+          "fields": [
+            {
+              "id": "deployments",
+              "type": "object",
+              "label": "Acoustic Monitoring Deployments",
+              "fields": [
+                {"id": "deployment_id", "type": "text", "label": "Deployment ID", "required": true},
+                {"id": "location", "type": "text", "label": "Location", "required": true},
+                {"id": "start_date", "type": "date", "label": "Start Date", "required": true},
+                {"id": "end_date", "type": "date", "label": "End Date"},
+                {"id": "latitude", "type": "number", "label": "Latitude", "required": true},
+                {"id": "longitude", "type": "number", "label": "Longitude", "required": true},
+                {"id": "depth_meters", "type": "number", "label": "Depth (meters)"},
+                {"id": "habitat_type", "type": "text", "label": "Habitat Type"}
+              ],
+              "multiple": true,
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "recordings",
+          "label": "Recordings",
+          "fields": [
+            {
+              "id": "recordings",
+              "type": "object",
+              "label": "Audio Recordings",
+              "fields": [
+                {"id": "recording_id", "type": "text", "label": "Recording ID", "required": true},
+                {"id": "deployment_id", "type": "text", "label": "Deployment ID", "required": true},
+                {"id": "timestamp", "type": "text", "label": "Timestamp", "description": "ISO 8601 format"},
+                {"id": "duration_seconds", "type": "number", "label": "Duration (seconds)"},
+                {"id": "sample_rate_hz", "type": "number", "label": "Sample Rate (Hz)"},
+                {"id": "bit_depth", "type": "number", "label": "Bit Depth"},
+                {
+                  "id": "file_format",
+                  "type": "select",
+                  "label": "File Format",
+                  "options": [
+                    {"label": "WAV", "value": "WAV"},
+                    {"label": "MP3", "value": "MP3"},
+                    {"label": "FLAC", "value": "FLAC"},
+                    {"label": "Other", "value": "other"}
+                  ]
+                },
+                {"id": "file_size_mb", "type": "number", "label": "File Size (MB)"},
+                {"id": "quality_flag", "type": "text", "label": "Quality Flag"}
+              ],
+              "multiple": true
+            }
+          ]
+        },
+        {
+          "id": "analyses",
+          "label": "Analyses",
+          "fields": [
+            {
+              "id": "analyses",
+              "type": "object",
+              "label": "Signal Processing and Analysis",
+              "fields": [
+                {"id": "analysis_id", "type": "text", "label": "Analysis ID", "required": true},
+                {"id": "recording_id", "type": "text", "label": "Recording ID", "required": true},
+                {
+                  "id": "analysis_type",
+                  "type": "select",
+                  "label": "Analysis Type",
+                  "required": true,
+                  "options": [
+                    {"label": "Spectrogram", "value": "spectrogram"},
+                    {"label": "Frequency Analysis", "value": "frequency_analysis"},
+                    {"label": "Event Detection", "value": "event_detection"},
+                    {"label": "Classification", "value": "classification"},
+                    {"label": "Source Localization", "value": "source_localization"},
+                    {"label": "Other", "value": "other"}
+                  ]
+                },
+                {"id": "analysis_software", "type": "text", "label": "Analysis Software"},
+                {"id": "software_version", "type": "text", "label": "Software Version"},
+                {"id": "analyst_name", "type": "text", "label": "Analyst Name"},
+                {"id": "analysis_date", "type": "date", "label": "Analysis Date"}
+              ],
+              "multiple": true
+            }
+          ]
+        },
+        {
+          "id": "detections",
+          "label": "Detections",
+          "fields": [
+            {
+              "id": "detections",
+              "type": "object",
+              "label": "Acoustic Event Detections",
+              "fields": [
+                {"id": "detection_id", "type": "text", "label": "Detection ID", "required": true},
+                {"id": "analysis_id", "type": "text", "label": "Analysis ID"},
+                {"id": "species", "type": "text", "label": "Species", "required": true},
+                {"id": "call_type", "type": "text", "label": "Call Type"},
+                {"id": "start_time_seconds", "type": "number", "label": "Start Time (seconds)"},
+                {"id": "end_time_seconds", "type": "number", "label": "End Time (seconds)"},
+                {"id": "start_frequency_hz", "type": "number", "label": "Start Frequency (Hz)"},
+                {"id": "end_frequency_hz", "type": "number", "label": "End Frequency (Hz)"},
+                {"id": "confidence", "type": "number", "label": "Confidence (0-1)"},
+                {"id": "signal_to_noise_ratio_db", "type": "number", "label": "Signal-to-Noise Ratio (dB)"},
+                {"id": "comments", "type": "long_text", "label": "Comments"}
+              ],
+              "multiple": true
+            }
+          ]
+        },
+        {
+          "id": "support",
+          "label": "Supporting Information",
+          "fields": [
+            {
+              "id": "devices",
+              "type": "object",
+              "label": "Devices",
+              "fields": [
+                {"id": "device_id", "type": "text", "label": "Device ID"},
+                {"id": "device_type", "type": "text", "label": "Device Type"},
+                {"id": "manufacturer", "type": "text", "label": "Manufacturer"},
+                {"id": "model", "type": "text", "label": "Model"},
+                {"id": "serial_number", "type": "text", "label": "Serial Number"}
+              ],
+              "multiple": true
+            },
+            {
+              "id": "projects",
+              "type": "object",
+              "label": "Associated Projects",
+              "fields": [
+                {"id": "project_id", "type": "text", "label": "Project ID"},
+                {"id": "project_name", "type": "text", "label": "Project Name"},
+                {"id": "principal_investigator", "type": "text", "label": "Principal Investigator"},
+                {"id": "funding_agency", "type": "text", "label": "Funding Agency"}
+              ],
+              "multiple": true
+            },
+            {
+              "id": "sites",
+              "type": "object",
+              "label": "Study Sites",
+              "fields": [
+                {"id": "site_id", "type": "text", "label": "Site ID"},
+                {"id": "site_name", "type": "text", "label": "Site Name"},
+                {"id": "site_code", "type": "text", "label": "Site Code"},
+                {"id": "region", "type": "text", "label": "Region"}
+              ],
+              "multiple": true
+            }
+          ]
+        },
+        {
+          "id": "qaqc",
+          "label": "Quality Assurance/Control",
+          "fields": [
+            {"id": "calibration_date", "type": "date", "label": "Calibration Date"},
+            {"id": "calibration_standard", "type": "text", "label": "Calibration Standard"},
+            {"id": "noise_floor_db", "type": "number", "label": "Noise Floor (dB)"},
+            {"id": "dynamic_range_db", "type": "number", "label": "Dynamic Range (dB)"},
+            {"id": "data_gaps", "type": "long_text", "label": "Data Gaps Description"},
+            {"id": "data_issues", "type": "long_text", "label": "Known Data Issues"},
+            {
+              "id": "validation_status",
+              "type": "select",
+              "label": "Validation Status",
+              "options": [
+                {"label": "Unchecked", "value": "unchecked"},
+                {"label": "Passed", "value": "passed"},
+                {"label": "Failed", "value": "failed"},
+                {"label": "Conditional", "value": "conditional"}
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tracks",
+          "label": "Acoustic Tracks",
+          "fields": [
+            {
+              "id": "tracks",
+              "type": "object",
+              "label": "Tracked Acoustic Events",
+              "fields": [
+                {"id": "track_id", "type": "text", "label": "Track ID", "required": true},
+                {"id": "track_type", "type": "text", "label": "Track Type"},
+                {"id": "species", "type": "text", "label": "Species", "required": true},
+                {"id": "individual_id", "type": "text", "label": "Individual ID (if identifiable)"},
+                {"id": "start_time", "type": "text", "label": "Start Time", "description": "ISO 8601 format"},
+                {"id": "end_time", "type": "text", "label": "End Time", "description": "ISO 8601 format"},
+                {"id": "track_notes", "type": "long_text", "label": "Track Notes"}
+              ],
+              "multiple": true
+            }
+          ]
+        }
+      ]
+    }'::jsonb,
+    true
+)
+ON CONFLICT (slug) DO NOTHING;
