@@ -34,7 +34,7 @@ if ! pg_isready --host db -U "${ADDB_OWNER_USER}" --dbname "${ADDB_DB_NAME}" --t
     exit 5;
 fi
 
-find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | while read -r line; do
+while read -r line; do
 
     BN=$( basename "$line" );
 
@@ -57,7 +57,7 @@ find /templates/ -maxdepth 1 -type f -iname '*.sql' | sort -n | while read -r li
         find "$TEMPLATES_DIR" -maxdepth 1 -type f -iname '*.sql' -delete
         exit 6;
     fi
-done;
+done < <( find "$TEMPLATES_DIR" -maxdepth 1 -type f -iname '*.sql' | sort -n )
 
 echo "Template execution successful, doing final .sql file cleanup" 1>&2;
 # Finally, clear any remaining .sql files generated from the templates
