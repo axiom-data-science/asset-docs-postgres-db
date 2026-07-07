@@ -110,14 +110,14 @@ BEGIN
         FROM
             ${ADDB_SCHEMA}.relationship r
         INNER JOIN
-            ${ADDB_SCHEMA}.relationship p
+            ${ADDB_SCHEMA}.predicate p
         ON
             r.predicate_uuid = p.uuid
         WHERE
             -- a different relationship
             r.uuid != NEW.uuid AND
             -- that is marked as directional
-            p.directional is TRUE AND
+            p.is_directional is TRUE AND
             -- and has the from/to documents reversed
             r.from_document_uuid = NEW.to_document_uuid AND
             r.to_document_uuid = NEW.from_document_uuid
