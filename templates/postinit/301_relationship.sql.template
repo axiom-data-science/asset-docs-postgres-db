@@ -16,8 +16,21 @@ ALTER TABLE ${ADDB_SCHEMA}.relationship ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS relationship_policy_select ON ${ADDB_SCHEMA}.relationship;
 CREATE POLICY relationship_policy_select ON ${ADDB_SCHEMA}.relationship
 FOR SELECT
---  All object types publicly SELECTable
-USING ( true );
+-- Relationships SELECTable when both documents are published, or user can
+-- modify one of the documents
+USING (
+    (
+        EXISTS ( SELECT 1 FROM ${ADDB_SCHEMA}.document df WHERE df.uuid = "from_document_uuid" and df.published IS TRUE )
+        AND
+        EXISTS ( SELECT 1 FROM ${ADDB_SCHEMA}.document dt WHERE dt.uuid = "to_document_uuid" and dt.published IS TRUE )
+    )
+    OR
+    (
+      ${ADDB_SCHEMA}.can_modify_document_by_uuid( "from_document_uuid" )
+      OR
+      ${ADDB_SCHEMA}.can_modify_document_by_uuid( "to_document_uuid" )
+    )
+ );
 
 DROP POLICY IF EXISTS relationship_policy_insert ON ${ADDB_SCHEMA}.relationship;
 CREATE POLICY relationship_policy_insert ON ${ADDB_SCHEMA}.relationship

@@ -430,6 +430,7 @@ class LocustUser(HttpUser):
                     "hi": "there"
                 },
                 "object_type_uuid": dummy_object_type['uuid'],
+                "published": True
             },
             name="post_first_related_document"
         )
@@ -455,6 +456,7 @@ class LocustUser(HttpUser):
                     "hi": "there"
                 },
                 "object_type_uuid": dummy_object_type['uuid'],
+                "published": True
             },
             name="post_second_related_document"
         )
