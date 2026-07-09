@@ -1,6 +1,10 @@
 DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs;
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs( aoi text, buffer bigint DEFAULT 0 )
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs(
+    aoi text,
+    buffer bigint DEFAULT 0,
+    include_dataset_extent bool DEFAULT true
+)
  RETURNS table (
    buffered_aoi jsonb,
    buffered_aoi_area_sqkm double precision,
@@ -10,6 +14,61 @@ CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs( aoi te
  STABLE
 AS $function$
   begin
+    IF include_dataset_extent IS true THEN
+        return query
+          with the_aoi_4326 as (
+            select
+              ST_TRANSFORM(
+                ST_Buffer(
+                    ST_GeographyFromText(
+                      aoi
+                    ),
+                    buffer
+                )::geometry,
+                4326
+              )::geometry as "aoi"
+          ),
+          the_intersect_asset as (
+              SELECT uuid FROM
+                the_aoi_4326,
+                ${ADDB_SCHEMA}.document a
+              WHERE
+                a.asset_geom IS NOT NULL AND
+                st_isvalid( a.asset_geom ) AND
+                ST_Intersects(
+                  a.asset_geom,
+                  the_aoi_4326.aoi
+                )
+          ),
+          the_intersect_dataset_extent as (
+              SELECT uuid FROM
+                the_aoi_4326,
+                ${ADDB_SCHEMA}.document a
+              WHERE
+                a.dataset_extent_geom IS NOT NULL AND
+                st_isvalid( a.dataset_extent_geom ) AND
+                ST_Intersects(
+                  a.dataset_extent_geom,
+                  the_aoi_4326.aoi
+                )
+          ),
+          the_intersect AS (
+            select * from the_intersect_asset
+            UNION
+            select * from the_intersect_dataset_extent
+          )
+          select
+            to_jsonb( the_aoi_4326.aoi::geometry ) as buffered_aoi,
+            st_area( the_aoi_4326.aoi::geography ) / (1000^2) as buffered_aoi_area_sqkm,
+            to_jsonb( array_agg( tu.uuid) ) as document_uuids
+          from
+            the_aoi_4326,
+            the_intersect tu
+          group by
+            the_aoi_4326.aoi
+        ;
+    END IF;
+
     return query
 		with the_aoi_4326 as (
           select
@@ -28,10 +87,10 @@ AS $function$
                 the_aoi_4326,
                 ${ADDB_SCHEMA}.document a
             WHERE
-                a.geom is not null AND
-                st_isvalid( a.geom ) AND
+                a.asset_geom is not null AND
+                st_isvalid( a.asset_geom ) AND
                 ST_Intersects(
-                    a.geom,
+                    a.asset_geom,
                     the_aoi_4326.aoi
                 )
         )
@@ -47,4 +106,29 @@ AS $function$
     ;
   end;
 $function$
+;
+
+-- A few smoke tests to make sure
+SELECT
+    ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs(
+        'SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))'
+    )
+LIMIT 1
+;
+
+SELECT
+    ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs(
+        'SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))',
+        10
+    )
+LIMIT 1
+;
+
+SELECT
+    ${ADDB_SCHEMA}.buffered_aoi_intersecting_docs(
+        'SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))',
+        10,
+        false
+    )
+LIMIT 1
 ;
