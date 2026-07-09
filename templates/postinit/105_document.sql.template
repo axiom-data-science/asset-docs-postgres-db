@@ -45,9 +45,32 @@ ALTER TABLE ${ADDB_SCHEMA}.document ADD CONSTRAINT document_type_slug_uniq UNIQU
 DROP INDEX IF EXISTS asset_docs_typ_slug_idx;
 CREATE INDEX IF NOT EXISTS asset_docs_typ_slug_idx ON ${ADDB_SCHEMA}.document (object_type_uuid, slug);
 
--- Adds geometry column
+-- Source: https://stackoverflow.com/questions/48102295/rename-column-only-if-exists
+
+DO $$
+BEGIN
+    -- Add/rename asset geometry column
+    IF EXISTS(
+        SELECT 1
+        FROM information_schema.columns
+        WHERE
+            table_name='document'
+            AND table_schema='${ADDB_SCHEMA}'
+            AND column_name='geom'
+    ) THEN
+        ALTER TABLE ${ADDB_SCHEMA}.document RENAME COLUMN "geom" TO "asset_geom";
+    ELSE
+        ALTER TABLE ${ADDB_SCHEMA}.document
+        ADD COLUMN IF NOT EXISTS asset_geom geometry NULL;
+    END IF;
+END $$;
+
+COMMENT ON COLUMN ${ADDB_SCHEMA}.document.asset_geom is 'Geometry representing the asset itself';
+
 ALTER TABLE ${ADDB_SCHEMA}.document
-ADD COLUMN IF NOT EXISTS geom geometry NULL;
+ADD COLUMN IF NOT EXISTS dataset_extent_geom geometry NULL;
+
+COMMENT ON COLUMN ${ADDB_SCHEMA}.document.dataset_extent_geom is 'Geometry representing extent of the dataset represented by the asset';
 
 -- Old view definitions can depend on legacy document columns. Drop and
 -- recreate them later so column migrations can run safely.
@@ -69,12 +92,21 @@ ALTER COLUMN "published" SET NOT NULL;
 ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS "published_at" timestamptz NULL;
 
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "dataset_start_time" timestamptz NULL;
+
+ALTER TABLE ${ADDB_SCHEMA}.document
+ADD COLUMN IF NOT EXISTS "dataset_end_time" timestamptz NULL;
+
 UPDATE ${ADDB_SCHEMA}.document
 SET published_at = now()
 WHERE published AND published_at IS NULL;
 
 DROP INDEX IF EXISTS asset_docs_geom_idx;
-CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (geom);
+CREATE INDEX asset_docs_geom_idx ON ${ADDB_SCHEMA}.document USING gist (asset_geom);
+
+DROP INDEX IF EXISTS asset_docs_dataset_extent_geom_idx;
+CREATE INDEX asset_docs_dataset_extent_geom_idx ON ${ADDB_SCHEMA}.document USING gist (dataset_extent_geom);
 
 ALTER TABLE ${ADDB_SCHEMA}.document ENABLE ROW LEVEL SECURITY;
 
