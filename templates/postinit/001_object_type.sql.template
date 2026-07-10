@@ -13,11 +13,13 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
     "slug" text NOT NULL UNIQUE,
     "category" object_category DEFAULT 'document'::object_category,
     "description" text,
-    "data" jsonb,
     "created_at" timestamptz NOT NULL DEFAULT now(),
     "updated_at" timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT object_type_slug_unique UNIQUE (slug)
 );
+
+ALTER TABLE ${ADDB_SCHEMA}.object_type
+ADD COLUMN IF NOT EXISTS "data" jsonb NULL;
 
 CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.enum_values AS
 SELECT
@@ -147,7 +149,7 @@ BEGIN
                                             "type": "string"
                                         }
                                 }
-                                                                    
+
                             }
                         }
                     }
@@ -156,9 +158,9 @@ BEGIN
             $json$
         )::json,
         (data)::jsonb
-    ) THEN 
+    ) THEN
         RETURN TRUE;
-    ELSE 
+    ELSE
         RETURN FALSE;
     END IF;
 END;
