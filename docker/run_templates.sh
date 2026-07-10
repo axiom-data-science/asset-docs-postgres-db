@@ -8,6 +8,7 @@ TEMPLATES_DIR="$1"
 
 ADDB_OWNER_USER=${ADDB_OWNER_USER:-}
 ADDB_DB_NAME=${ADDB_DB_NAME:-}
+ADDB_HOST=${ADDB_HOST:-db}
 
 ADDB_ENABLE_MOCK_DATA=${ADDB_ENABLE_MOCK_DATA:-false}
 
@@ -21,6 +22,11 @@ if [ -z "$ADDB_DB_NAME" ]; then
     exit 3;
 fi
 
+if [ -z "$ADDB_HOST" ]; then
+    echo "ADDB_HOST is unset";
+    exit 3;
+fi
+
 /usr/local/bin/env.sh "$TEMPLATES_DIR";
 TEMPLATES_RET=$?
 
@@ -29,7 +35,7 @@ if [ "$TEMPLATES_RET" -ne '0' ]; then
     exit 4;
 fi
 
-if ! pg_isready --host db -U "${ADDB_OWNER_USER}" --dbname "${ADDB_DB_NAME}" --timeout 5; then
+if ! pg_isready --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout 5; then
     echo "Postgres not ready in time." 1>&2;
     exit 5;
 fi
@@ -48,7 +54,7 @@ while read -r line; do
     fi
 
     echo "Executing $BN";
-    psql -v ON_ERROR_STOP=1 --host db -U "${ADDB_OWNER_USER}" --dbname "${ADDB_DB_NAME}" -f "$line";
+    psql -v ON_ERROR_STOP=1 --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" -f "$line";
     PSQL_RET=$?;
     rm "$line";
     if [ "$PSQL_RET" -ne '0' ]; then
