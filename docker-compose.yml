@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile
     environment:
       # Used to specify a remote postgres host to run against (if not db service)
-      # - ADDB_HOST=somewhere.else
+      - ADDB_HOST=db
       - ADDB_DB_NAME
       - ADDB_OWNER_USER
       - ADDB_PASSWORD
