@@ -107,8 +107,7 @@ SELECT $json$
         "include_jwt": { "type": "boolean" },
         "location": { "type": "string" },
         "path": { "type": "string" }
-      },
-      "additionalProperties": true
+      }
     }
   },
   "additionalProperties": false,
@@ -128,21 +127,12 @@ SELECT $json$
     "api_overrides": {
       "type": "object",
       "properties": {
-        "domain": { "type": "string" },
         "schema_location": { "$ref": "#/$defs/request" },
         "get": {
-          "type": "object",
-          "properties": {
-            "single": { "$ref": "#/$defs/request" },
-            "list": { "$ref": "#/$defs/request" }
-          }
+          "$ref": "#/$defs/request"
         },
         "post": {
-          "type": "string",
-          "mappings": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          }
+          "$ref": "#/$defs/request"
         }
       }
     }
