@@ -92,71 +92,59 @@ USING (
     )
 );
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_validate_object_type_data(data json) RETURNS boolean AS $func$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.object_type_data_schema()
+RETURNS json
+LANGUAGE sql
+IMMUTABLE
+AS $$
+SELECT $json$
+{
+  "type": "object",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "include_jwt": { "type": "boolean" },
+        "location": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "field_mappings": {
+      "type": "object",
+      "properties": {
+        "slug": {"type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "asset_geom": { "type": "string" },
+        "dataset_extent_geom": { "type": "string" },
+        "dataset_start_time": { "type": "string" },
+        "dataset_end_time": { "type": "string" }
+      }
+    },
+    "api_overrides": {
+      "type": "object",
+      "properties": {
+        "schema_location": { "$ref": "#/$defs/request" },
+        "get": {
+          "$ref": "#/$defs/request"
+        },
+        "post": {
+          "$ref": "#/$defs/request"
+        }
+      }
+    }
+  }
+}
+$json$::json;
+$$;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) RETURNS boolean AS $func$
 BEGIN
     IF jsonb_matches_schema(
-        (
-            $json$
-            {
-                "type": "object",
-                "additionalProperties": true,
-                "properties": {
-                    "field_mappings": {
-                        "type": "object",
-                        "properties": {
-                            "label": {
-                                "type": "string"
-                            },
-                            "description": {
-                                "type": "string"
-                            },
-                            "geometry": {
-                                "type": "string"
-                            },
-                            "start_date": {
-                                "type": "string"
-                            },
-                            "end_date": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "api_overrides": {
-                        "type": "object",
-                        "properties": {
-                            "domain": {
-                                "type": "string"
-                            },
-                            "get": {
-                                "type": "object",
-                                "properties": {
-                                    "include_jwt": {
-                                        "type": "boolean"
-                                    },
-                                    "single": {
-                                        "type": "string"
-                                    },
-                                    "list": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "post" : {
-                                "type": "string",
-                                "mappings": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                            "type": "string"
-                                        }
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
-            $json$
-        )::json,
+        ${ADDB_SCHEMA}.object_type_data_schema()::json,
         (data)::jsonb
     ) THEN
         RETURN TRUE;
@@ -186,7 +174,7 @@ BEGIN
     END IF;
 
 
-    IF NEW.data IS NOT NULL AND NOT ${ADDB_SCHEMA}_validate_object_type_data(NEW.data::json) THEN
+    IF NEW.data IS NOT NULL AND NOT ${ADDB_SCHEMA}.validate_object_type_data(NEW.data::json) THEN
         RAISE sqlstate 'PGRST' USING
             message = json_build_object(
                 -- 'code' must be present, and also a string
@@ -212,3 +200,11 @@ CREATE OR REPLACE TRIGGER trigger_${ADDB_SCHEMA}_object_type_update_trigger
 BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.object_type
 FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger();
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() TO ${ADDB_READ_USER};
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) TO ${ADDB_READ_USER};
