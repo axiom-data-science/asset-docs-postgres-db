@@ -200,3 +200,11 @@ CREATE OR REPLACE TRIGGER trigger_${ADDB_SCHEMA}_object_type_update_trigger
 BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.object_type
 FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}_object_type_update_trigger();
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.object_type_data_schema() TO ${ADDB_READ_USER};
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) TO ${ADDB_RW_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.validate_object_type_data(data json) TO ${ADDB_READ_USER};
