@@ -9,13 +9,24 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     label,
     slug,
     category,
-    description
+    description,
+    data
 ) VALUES (
     'brian@axiomalaska.com',
     'MODL',
     'modl',
     'document'::${ADDB_SCHEMA}.object_category,
-    'MetOcean Data Lifecycle observations'
+    '',
+    '{
+      "expected_child_types": [
+        {
+          "single": true,
+          "object_type_query": "slug=ilike.%modl_collection_%",
+          "label": "Collection metadata",
+          "description": "Select the collection type that corresponds with your data source"
+        }
+      ]
+    }'::jsonb
 )
 ON CONFLICT (slug) DO NOTHING;
 
@@ -554,6 +565,468 @@ INSERT INTO ${ADDB_SCHEMA}.form (
       ]
     }'::jsonb,
     true
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'brian@axiomalaska.com',
+    'MODL collection: Honohu',
+    'modl_collection_honohu',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'brian@axiomalaska.com',
+    'modl_collection_honohu',
+    'MODL Honohu',
+    'Default schema for MODL Honohu collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_honohu'
+        LIMIT 1
+    ),
+    '{
+        "type": "object",
+        "title": "HohonuConfig",
+        "required": [
+            "station",
+            "hohonu_id",
+            "start_date",
+            "latitude",
+            "longitude"
+        ],
+        "properties": {
+            "station": {
+                "type": "string",
+                "title": "Station",
+                "description": "Station name/timeseries_id"
+            },
+            "latitude": {
+                "type": "number",
+                "title": "Latitude",
+                "description": "Fixed latitude of the station"
+            },
+            "hohonu_id": {
+                "type": "string",
+                "title": "Hohonu Id",
+                "description": "Hohonu station ID"
+            },
+            "longitude": {
+                "type": "number",
+                "title": "Longitude",
+                "description": "Fixed longitude of the station"
+            },
+            "start_date": {
+                "type": "string",
+                "title": "Start Date",
+                "format": "date"
+            }
+        },
+        "description": "Configuration for Hohonu Dataset"
+    }'::jsonb
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'brian@axiomalaska.com',
+    'MODL collection: S3 timeseries',
+    'modl_collection_s3timeseries',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'brian@axiomalaska.com',
+    'modl_collection_s3timeseries',
+    'MODL S3 Timeseries',
+    'Default schema for MODL S3 Timeseries collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_s3timeseries'
+        LIMIT 1
+    ),
+    '{
+            "type": "object",
+            "$defs": {
+                "VarMap": {
+                    "type": "object",
+                    "title": "VarMap",
+                    "required": [
+                        "source",
+                        "output"
+                    ],
+                    "properties": {
+                        "output": {
+                            "type": "string",
+                            "title": "Output",
+                            "description": "The output variable name in the dataset"
+                        },
+                        "source": {
+                            "type": "string",
+                            "title": "Source",
+                            "description": "The source variable name in the input data"
+                        }
+                    },
+                    "description": "Configure a single variable mapping"
+                },
+                "DayGlob": {
+                    "type": "object",
+                    "title": "DayGlob",
+                    "properties": {
+                        "day_pattern": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Day Pattern",
+                            "default": null,
+                            "examples": [
+                                "EW01_ADCP_{partition_date:%Y%m%d}_*.txt",
+                                "EW01_wave_ioos_{partition_date:%Y%m%d}_*.txt"
+                            ],
+                            "description": "\nGlob pattern for daily files.\nThe `partition_date` is available for formatting\n"
+                        }
+                    },
+                    "description": "Configure glob patterns for daily files in S3."
+                },
+                "DropColumns": {
+                    "type": "object",
+                    "title": "DropColumns",
+                    "required": [
+                        "column_names"
+                    ],
+                    "properties": {
+                        "column_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "Column Names"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "drop",
+                            "title": "Converter Type",
+                            "default": "drop"
+                        }
+                    }
+                },
+                "NcAttributes": {
+                    "type": "object",
+                    "title": "NcAttributes",
+                    "properties": {
+                        "variables": {
+                            "type": "object",
+                            "title": "Variables",
+                            "description": "Variable-specific attributes",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        },
+                        "global_attributes": {
+                            "type": "object",
+                            "title": "Global Attributes",
+                            "description": "Global attributes to add to the NetCDF file",
+                            "additionalProperties": true
+                        },
+                        "additional_attributes_file": {
+                            "type": "string",
+                            "title": "Additional Attributes File",
+                            "default": null,
+                            "description": "Path to the file that defines additional attributes for source"
+                        }
+                    },
+                    "description": "Configure variable and global dataset attributes"
+                },
+                "SplitOperator": {
+                    "type": "object",
+                    "title": "SplitOperator",
+                    "required": [
+                        "sep",
+                        "output_variables",
+                        "source_variable"
+                    ],
+                    "properties": {
+                        "sep": {
+                            "type": "string",
+                            "title": "Sep",
+                            "description": "The separator"
+                        },
+                        "col_data_type": {
+                            "type": "string",
+                            "title": "Col Data Type",
+                            "default": "float",
+                            "description": "The data type of the new variables"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "split",
+                            "title": "Converter Type",
+                            "default": "split"
+                        },
+                        "source_variable": {
+                            "type": "string",
+                            "title": "Source Variable",
+                            "description": "The source variable to split into multiple columns"
+                        },
+                        "output_variables": {
+                            "type": "object",
+                            "title": "Output Variables",
+                            "description": "Mapping of index number to output variable.",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "Takes the source variable, splits it on the separator and  maps the resulting array to new variables"
+                },
+                "S3SourceConfig": {
+                    "type": "object",
+                    "title": "S3SourceConfig",
+                    "required": [
+                        "bucket"
+                    ],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "description": "The S3 bucket name"
+                        },
+                        "prefix": {
+                            "type": "string",
+                            "title": "Prefix",
+                            "default": "/",
+                            "description": "The S3 prefix/folder where files are located"
+                        }
+                    },
+                    "description": "Configuration for data coming from an S3 Bucket"
+                },
+                "PandasCSVReader": {
+                    "type": "object",
+                    "title": "PandasCSVReader",
+                    "properties": {
+                        "sep": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Sep",
+                            "default": null,
+                            "description": "CSV delimiter"
+                        },
+                        "comment": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Comment",
+                            "default": null,
+                            "description": "CSV line comment character"
+                        },
+                        "na_values": {
+                            "type": "string",
+                            "title": "Na Values",
+                            "default": "None"
+                        }
+                    },
+                    "description": "Configure Pandas to read CSVs in S3.\n\nPassed through to `pd.read_csv`, so see full argument definitions at\nhttps://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html"
+                },
+                "ProfileConverter": {
+                    "type": "object",
+                    "title": "ProfileConverter",
+                    "required": [
+                        "profile_data"
+                    ],
+                    "properties": {
+                        "profile_data": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/$defs/ProfileDepthMappings"
+                            },
+                            "title": "Profile Data",
+                            "description": "Mapping for variables with multiple depth levels"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "profile",
+                            "title": "Converter Type",
+                            "default": "profile"
+                        }
+                    }
+                },
+                "ProfileDepthMappings": {
+                    "type": "object",
+                    "title": "ProfileDepthMappings",
+                    "required": [
+                        "mappings"
+                    ],
+                    "properties": {
+                        "depth": {
+                            "type": "number",
+                            "title": "Depth",
+                            "default": null,
+                            "description": "Optional- fixed depth for the mapping."
+                        },
+                        "mappings": {
+                            "type": "object",
+                            "title": "Mappings",
+                            "description": "Maps input variables to output variables at the current depth ",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "title": "S3TimeseriesConfig",
+            "required": [
+                "start_date",
+                "reader",
+                "file_pattern",
+                "station"
+            ],
+            "properties": {
+                "reader": {
+                    "$ref": "#/$defs/PandasCSVReader"
+                },
+                "station": {
+                    "type": "string",
+                    "title": "Station",
+                    "description": "Station name/timeseries_id"
+                },
+                "latitude": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "title": "Latitude",
+                    "default": null,
+                    "description": "Fixed latitude of the station"
+                },
+                "longitude": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "title": "Longitude",
+                    "default": null,
+                    "description": "Fixed longitude of the station"
+                },
+                "s3_source": {
+                    "$ref": "#/$defs/S3SourceConfig",
+                    "description": "Configuration for accessing data in S3"
+                },
+                "attributes": {
+                    "$ref": "#/$defs/NcAttributes",
+                    "description": "NetCDF attributes to add to the dataset and variables"
+                },
+                "start_date": {
+                    "type": "string",
+                    "title": "Start Date",
+                    "format": "date"
+                },
+                "dataset_type": {
+                    "type": "string",
+                    "title": "Dataset Type",
+                    "default": "timeseries",
+                    "description": "Dateset type (timeseries or profile)"
+                },
+                "file_pattern": {
+                    "$ref": "#/$defs/DayGlob",
+                    "description": "Source file name pattern"
+                },
+                "source_time_var": {
+                    "type": "string",
+                    "title": "Source Time Var",
+                    "default": "datetime"
+                },
+                "variable_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/VarMap"
+                    },
+                    "title": "Variable Mappings",
+                    "description": "Variable name mappings, source to output dataset destination name"
+                },
+                "variable_converter": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/SplitOperator"
+                            },
+                            {
+                                "$ref": "#/$defs/DropColumns"
+                            },
+                            {
+                                "$ref": "#/$defs/ProfileConverter"
+                            }
+                        ]
+                    },
+                    "title": "Variable Converter",
+                    "default": null,
+                    "description": "List of variable conversion steps"
+                }
+            },
+            "description": "Configuration for S3 Timeseries Dataset."
+        }'::jsonb
 )
 ON CONFLICT (slug) DO NOTHING;
 

@@ -135,6 +135,17 @@ SELECT $json$
           "$ref": "#/$defs/request"
         }
       }
+    },
+    "expected_child_types": {
+      "type": "array",
+      "properties": {
+            "single": { "type": "boolean" },
+            "object_type_query": { "type": "string" },
+            "object_type_slug": { "type": "string" },
+            "label": { "type": "string" },
+            "description": { "type": "string" },
+            "presidence": { "type": "number" }
+        } 
     }
   }
 }
