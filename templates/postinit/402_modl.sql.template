@@ -23,7 +23,8 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
           "single": true,
           "object_type_query": "slug=ilike.%modl_collection_%",
           "label": "Collection metadata",
-          "description": "Select the collection type that corresponds with your data source"
+          "description": "Select the collection type that corresponds with your data source",
+          "has_predicate": "has_parent"
         }
       ]
     }'::jsonb
