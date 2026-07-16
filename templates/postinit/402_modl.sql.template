@@ -12,7 +12,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     description,
     data
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'MODL',
     'modl',
     'document'::${ADDB_SCHEMA}.object_category,
@@ -41,7 +41,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     object_type_uuid,
     json_schema
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'modl',
     'MODL',
     'Default schema for MODL object type',
@@ -242,7 +242,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     form_config,
     use_form_config
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'modl',
     'MODL Dataset Metadata Form',
     true,
@@ -559,7 +559,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     category,
     description
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'MODL collection: Honohu',
     'modl_collection_honohu',
     'document'::${ADDB_SCHEMA}.object_category,
@@ -576,7 +576,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     object_type_uuid,
     json_schema
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'modl_collection_honohu',
     'MODL Honohu',
     'Default schema for MODL Honohu collection',
@@ -636,7 +636,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     category,
     description
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'MODL collection: S3 timeseries',
     'modl_collection_s3timeseries',
     'document'::${ADDB_SCHEMA}.object_category,
@@ -653,7 +653,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     object_type_uuid,
     json_schema
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'modl_collection_s3timeseries',
     'MODL S3 Timeseries',
     'Default schema for MODL S3 Timeseries collection',

@@ -12,7 +12,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     category,
     description
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'Water Level',
     'water-level',
     'document'::${ADDB_SCHEMA}.object_category,
@@ -30,7 +30,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     object_type_uuid,
     json_schema
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'water-level-default-schema',
     'Water Level Default Schema',
     'Default schema for water level object type with COLLAB metadata',
@@ -809,7 +809,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     form_config,
     use_form_config
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'water-level',
     'Water Level',
     true,
