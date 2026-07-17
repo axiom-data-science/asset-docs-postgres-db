@@ -920,7 +920,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     '',
     ${ADDB_SCHEMA}.modl_object_type_data()
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET data = EXCLUDED.data;;
 
 -- Insert the default schema for MODL (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.object_schema (
@@ -971,7 +971,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     ${ADDB_SCHEMA}.modl_form_form_config(),
     true
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;;
 
 
 
@@ -1011,7 +1011,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     ),
     ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
 
 
 INSERT INTO ${ADDB_SCHEMA}.object_type (
@@ -1050,5 +1050,5 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     ),
     ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
 
