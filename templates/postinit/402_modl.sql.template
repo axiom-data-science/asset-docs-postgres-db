@@ -3,21 +3,11 @@
 -- MODL (MetOcean Data Lifecycle)
 -- ============================================================================
 
--- Insert the MODL object_type (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description,
-    data
-) VALUES (
-    'system',
-    'MODL',
-    'modl',
-    'document'::${ADDB_SCHEMA}.object_category,
-    '',
-    '{
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN '{
       "expected_child_types": [
         {
           "single": true,
@@ -27,31 +17,14 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
           "has_predicate": "has_parent"
         }
       ]
-    }'::jsonb
-)
-ON CONFLICT (slug) DO NOTHING;
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
--- Insert the default schema for MODL (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'system',
-    'modl',
-    'MODL',
-    'Default schema for MODL object type',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'modl'
-        LIMIT 1
-    ),
-    '{
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN     '{
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MODL Dataset Metadata Schema",
       "type": "object",
@@ -227,366 +200,315 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
         }
       },
       "required": ["title", "id"]
-    }'::jsonb
-)
-ON CONFLICT (slug) DO NOTHING;
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
--- Insert the default form for MODL (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.form (
-    owner_sub,
-    slug,
-    label,
-    is_schema_and_version_default,
-    object_type_uuid,
-    object_schema_version,
-    form_config,
-    use_form_config
-) VALUES (
-    'system',
-    'modl',
-    'MODL Dataset Metadata Form',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'modl'
-        LIMIT 1
-    ),
-    1,
-    '{
-  "id": "modl-metadata-form",
-  "label": "MODL Dataset Metadata Form",
-  "pages": [
-    {
-      "id": "basic-info",
-      "label": "Basic Information",
-      "fields": [
-        {
-          "id": "title",
-          "type": "text",
-          "label": "Dataset Title",
-          "required": true,
-          "description": "Unique dataset identifier in ERDDAP",
-          "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
-        },
-        {
-          "id": "id",
-          "type": "text",
-          "label": "Platform/Station ID",
-          "required": true,
-          "description": "Unique Platform/Station ID",
-          "placeholder": "e.g., SFW01"
-        },
-        {
-          "id": "platform_name",
-          "type": "text",
-          "label": "Platform Name",
-          "description": "Project or individual platform",
-          "placeholder": "e.g., South Fork Wind"
-        },
-        {
-          "id": "project",
-          "type": "text",
-          "label": "Project",
-          "description": "Name of wind project",
-          "placeholder": "e.g., South Fork Wind"
-        },
-        {
-          "id": "summary",
-          "type": "long_text",
-          "label": "Summary",
-          "description": "Basic summary of dataset - location, platform, variables collected",
-          "placeholder": "Describe the dataset, location, platform, and variables collected"
-        }
-      ],
-      "description": "Essential dataset identification"
-    },
-    {
-      "id": "creator-info",
-      "label": "Creator Information",
-      "fields": [
-        {
-          "id": "creator_name",
-          "type": "text",
-          "label": "Creator Name",
-          "description": "Name of creator entity",
-          "placeholder": "e.g., South Fork Wind"
-        },
-        {
-          "id": "institution",
-          "type": "text",
-          "label": "Institution",
-          "description": "Institution name",
-          "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
-        },
-        {
-          "id": "creator_address",
-          "type": "text",
-          "label": "Creator Address",
-          "description": "Mailing address",
-          "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
-        },
-        {
-          "id": "creator_state",
-          "type": "text",
-          "label": "Creator State",
-          "description": "State of operation",
-          "placeholder": "e.g., New York"
-        },
-        {
-          "id": "creator_country",
-          "type": "text",
-          "label": "Creator Country",
-          "description": "Creator country",
-          "placeholder": "e.g., USA"
-        },
-        {
-          "id": "creator_email",
-          "type": "text",
-          "label": "Creator Email",
-          "description": "Primary contact email",
-          "placeholder": "e.g., info@southforkwind.com"
-        },
-        {
-          "id": "creator_URL",
-          "type": "text",
-          "label": "Creator Website",
-          "description": "Creator website URL",
-          "placeholder": "e.g., https://southforkwind.com"
-        },
-        {
-          "id": "creator_sector",
-          "type": "select",
-          "label": "Creator Sector",
-          "options": [
-            {
-              "label": "State Government",
-              "value": "gov_state"
-            },
-            {
-              "label": "Nonprofit",
-              "value": "nonprofit"
-            },
-            {
-              "label": "Industry",
-              "value": "industry"
-            },
-            {
-              "label": "Academic",
-              "value": "academic"
-            },
-            {
-              "label": "Federal Government",
-              "value": "gov_federal"
-            },
-            {
-              "label": "Tribal",
-              "value": "tribal"
-            }
-          ],
-          "description": "IOOS classifier for sector"
-        }
-      ],
-      "description": "Owner/operator of platform details"
-    },
-    {
-      "id": "contributor-info",
-      "label": "Contributor Information",
-      "fields": [
-        {
-          "id": "contributor_name",
-          "type": "text",
-          "label": "Contributor Name",
-          "description": "Platform deployment/data provider entity",
-          "placeholder": "e.g., Woods Hole Group"
-        },
-        {
-          "id": "contributor_address",
-          "type": "text",
-          "label": "Contributor Address",
-          "description": "Physical address or city/state/country",
-          "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
-        },
-        {
-          "id": "contributor_email",
-          "type": "text",
-          "label": "Contributor Email",
-          "description": "Contributor primary contact email",
-          "placeholder": "e.g., dwalsh@woodsholegroup.com"
-        },
-        {
-          "id": "contributor_url",
-          "type": "text",
-          "label": "Contributor Website",
-          "description": "Contributor website URL",
-          "placeholder": "e.g., https://www.woodsholegroup.com/"
-        }
-      ],
-      "description": "Platform deployment/data provider entity details"
-    },
-    {
-      "id": "publisher-info",
-      "label": "Publisher Information",
-      "fields": [
-        {
-          "id": "publisher_name",
-          "type": "text",
-          "label": "Publisher Name",
-          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-          "placeholder": "e.g., MARACOOS, NERACOOS"
-        },
-        {
-          "id": "publisher_institution",
-          "type": "text",
-          "label": "Publisher Institution",
-          "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-          "placeholder": "e.g., MARACOOS, NERACOOS"
-        },
-        {
-          "id": "publisher_email",
-          "type": "text",
-          "label": "Publisher Email",
-          "description": "Publisher contact email",
-          "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
-        },
-        {
-          "id": "publisher_phone",
-          "type": "text",
-          "label": "Publisher Phone",
-          "description": "Publisher contact phone",
-          "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
-        },
-        {
-          "id": "publisher_country",
-          "type": "text",
-          "label": "Publisher Country",
-          "description": "Publisher country",
-          "placeholder": "e.g., USA"
-        },
-        {
-          "id": "publisher_url",
-          "type": "text",
-          "label": "Publisher Website",
-          "description": "Publisher website URL",
-          "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
-        },
-        {
-          "id": "publisher_type",
-          "type": "text",
-          "label": "Publisher Type",
-          "description": "Type of publisher",
-          "placeholder": "e.g., institution"
-        }
-      ],
-      "description": "Data management at NERACOOS/MARACOOS"
-    },
-    {
-      "id": "geospatial-info",
-      "label": "Geospatial Information",
-      "fields": [
-        {
-          "id": "geometry",
-          "type": "geometry",
-          "label": "Location",
-          "settings": {
-            "drawPointEnabled": true
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_form_form_config()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "id": "modl-metadata-form",
+    "label": "MODL Dataset Metadata Form",
+    "pages": [
+      {
+        "id": "basic-info",
+        "label": "Basic Information",
+        "fields": [
+          {
+            "id": "title",
+            "type": "text",
+            "label": "Dataset Title",
+            "required": true,
+            "description": "Unique dataset identifier in ERDDAP",
+            "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
+          },
+          {
+            "id": "id",
+            "type": "text",
+            "label": "Platform/Station ID",
+            "required": true,
+            "description": "Unique Platform/Station ID",
+            "placeholder": "e.g., SFW01"
+          },
+          {
+            "id": "platform_name",
+            "type": "text",
+            "label": "Platform Name",
+            "description": "Project or individual platform",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "project",
+            "type": "text",
+            "label": "Project",
+            "description": "Name of wind project",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "summary",
+            "type": "long_text",
+            "label": "Summary",
+            "description": "Basic summary of dataset - location, platform, variables collected",
+            "placeholder": "Describe the dataset, location, platform, and variables collected"
           }
-        }
-      ],
-      "description": "Geographic coordinates"
-    },
-    {
-      "id": "additional-info",
-      "label": "Additional Information",
-      "fields": [
-        {
-          "id": "comment",
-          "type": "long_text",
-          "label": "Comment",
-          "description": "Description of the buoy/platform and contributor",
-          "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
-        },
-        {
-          "id": "acknowledgement",
-          "type": "long_text",
-          "label": "Acknowledgement",
-          "description": "Acknowledgment of financial supporting entities or award numbers",
-          "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
-        },
-        {
-          "id": "infoURL",
-          "type": "text",
-          "label": "Information URL",
-          "description": "Best website for information about program",
-          "placeholder": "e.g., https://southforkwind.com"
-        },
-        {
-          "id": "license",
-          "type": "long_text",
-          "label": "License",
-          "description": "General license language for re-use/access of data",
-          "placeholder": "e.g., The data may be used and redistributed for free..."
-        },
-        {
-          "id": "processing_level",
-          "type": "text",
-          "label": "Processing Level",
-          "description": "Processing level of data (raw, qc, level 1, etc)",
-          "placeholder": "e.g., raw dataset, no qc provided"
-        },
-        {
-          "id": "Instrument",
-          "type": "text",
-          "label": "Instrument(s)",
-          "description": "Instruments used (separate by comma if multiple)",
-          "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
-        }
-      ],
-      "description": "Supplementary metadata"
-    }
-  ],
-  "description": "Form for capturing MODL Dataset Metadata"
-}'::jsonb,
-    true
-)
-ON CONFLICT (slug) DO NOTHING;
+        ],
+        "description": "Essential dataset identification"
+      },
+      {
+        "id": "creator-info",
+        "label": "Creator Information",
+        "fields": [
+          {
+            "id": "creator_name",
+            "type": "text",
+            "label": "Creator Name",
+            "description": "Name of creator entity",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "institution",
+            "type": "text",
+            "label": "Institution",
+            "description": "Institution name",
+            "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
+          },
+          {
+            "id": "creator_address",
+            "type": "text",
+            "label": "Creator Address",
+            "description": "Mailing address",
+            "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
+          },
+          {
+            "id": "creator_state",
+            "type": "text",
+            "label": "Creator State",
+            "description": "State of operation",
+            "placeholder": "e.g., New York"
+          },
+          {
+            "id": "creator_country",
+            "type": "text",
+            "label": "Creator Country",
+            "description": "Creator country",
+            "placeholder": "e.g., USA"
+          },
+          {
+            "id": "creator_email",
+            "type": "text",
+            "label": "Creator Email",
+            "description": "Primary contact email",
+            "placeholder": "e.g., info@southforkwind.com"
+          },
+          {
+            "id": "creator_URL",
+            "type": "text",
+            "label": "Creator Website",
+            "description": "Creator website URL",
+            "placeholder": "e.g., https://southforkwind.com"
+          },
+          {
+            "id": "creator_sector",
+            "type": "select",
+            "label": "Creator Sector",
+            "options": [
+              {
+                "label": "State Government",
+                "value": "gov_state"
+              },
+              {
+                "label": "Nonprofit",
+                "value": "nonprofit"
+              },
+              {
+                "label": "Industry",
+                "value": "industry"
+              },
+              {
+                "label": "Academic",
+                "value": "academic"
+              },
+              {
+                "label": "Federal Government",
+                "value": "gov_federal"
+              },
+              {
+                "label": "Tribal",
+                "value": "tribal"
+              }
+            ],
+            "description": "IOOS classifier for sector"
+          }
+        ],
+        "description": "Owner/operator of platform details"
+      },
+      {
+        "id": "contributor-info",
+        "label": "Contributor Information",
+        "fields": [
+          {
+            "id": "contributor_name",
+            "type": "text",
+            "label": "Contributor Name",
+            "description": "Platform deployment/data provider entity",
+            "placeholder": "e.g., Woods Hole Group"
+          },
+          {
+            "id": "contributor_address",
+            "type": "text",
+            "label": "Contributor Address",
+            "description": "Physical address or city/state/country",
+            "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
+          },
+          {
+            "id": "contributor_email",
+            "type": "text",
+            "label": "Contributor Email",
+            "description": "Contributor primary contact email",
+            "placeholder": "e.g., dwalsh@woodsholegroup.com"
+          },
+          {
+            "id": "contributor_url",
+            "type": "text",
+            "label": "Contributor Website",
+            "description": "Contributor website URL",
+            "placeholder": "e.g., https://www.woodsholegroup.com/"
+          }
+        ],
+        "description": "Platform deployment/data provider entity details"
+      },
+      {
+        "id": "publisher-info",
+        "label": "Publisher Information",
+        "fields": [
+          {
+            "id": "publisher_name",
+            "type": "text",
+            "label": "Publisher Name",
+            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+            "placeholder": "e.g., MARACOOS, NERACOOS"
+          },
+          {
+            "id": "publisher_institution",
+            "type": "text",
+            "label": "Publisher Institution",
+            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+            "placeholder": "e.g., MARACOOS, NERACOOS"
+          },
+          {
+            "id": "publisher_email",
+            "type": "text",
+            "label": "Publisher Email",
+            "description": "Publisher contact email",
+            "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
+          },
+          {
+            "id": "publisher_phone",
+            "type": "text",
+            "label": "Publisher Phone",
+            "description": "Publisher contact phone",
+            "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
+          },
+          {
+            "id": "publisher_country",
+            "type": "text",
+            "label": "Publisher Country",
+            "description": "Publisher country",
+            "placeholder": "e.g., USA"
+          },
+          {
+            "id": "publisher_url",
+            "type": "text",
+            "label": "Publisher Website",
+            "description": "Publisher website URL",
+            "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
+          },
+          {
+            "id": "publisher_type",
+            "type": "text",
+            "label": "Publisher Type",
+            "description": "Type of publisher",
+            "placeholder": "e.g., institution"
+          }
+        ],
+        "description": "Data management at NERACOOS/MARACOOS"
+      },
+      {
+        "id": "geospatial-info",
+        "label": "Geospatial Information",
+        "fields": [
+          {
+            "id": "geometry",
+            "type": "geometry",
+            "label": "Location",
+            "settings": {
+              "drawPointEnabled": true
+            }
+          }
+        ],
+        "description": "Geographic coordinates"
+      },
+      {
+        "id": "additional-info",
+        "label": "Additional Information",
+        "fields": [
+          {
+            "id": "comment",
+            "type": "long_text",
+            "label": "Comment",
+            "description": "Description of the buoy/platform and contributor",
+            "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
+          },
+          {
+            "id": "acknowledgement",
+            "type": "long_text",
+            "label": "Acknowledgement",
+            "description": "Acknowledgment of financial supporting entities or award numbers",
+            "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
+          },
+          {
+            "id": "infoURL",
+            "type": "text",
+            "label": "Information URL",
+            "description": "Best website for information about program",
+            "placeholder": "e.g., https://southforkwind.com"
+          },
+          {
+            "id": "license",
+            "type": "long_text",
+            "label": "License",
+            "description": "General license language for re-use/access of data",
+            "placeholder": "e.g., The data may be used and redistributed for free..."
+          },
+          {
+            "id": "processing_level",
+            "type": "text",
+            "label": "Processing Level",
+            "description": "Processing level of data (raw, qc, level 1, etc)",
+            "placeholder": "e.g., raw dataset, no qc provided"
+          },
+          {
+            "id": "Instrument",
+            "type": "text",
+            "label": "Instrument(s)",
+            "description": "Instruments used (separate by comma if multiple)",
+            "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
+          }
+        ],
+        "description": "Supplementary metadata"
+      }
+    ],
+    "description": "Form for capturing MODL Dataset Metadata"
+  }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
 
-
-INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description
-) VALUES (
-    'system',
-    'MODL collection: Honohu',
-    'modl_collection_honohu',
-    'document'::${ADDB_SCHEMA}.object_category,
-    ''
-)
-ON CONFLICT (slug) DO NOTHING;
-
-INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'system',
-    'modl_collection_honohu',
-    'MODL Honohu',
-    'Default schema for MODL Honohu collection',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'modl_collection_honohu'
-        LIMIT 1
-    ),
-    '{
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
         "type": "object",
         "title": "HohonuConfig",
         "required": [
@@ -624,46 +546,15 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
             }
         },
         "description": "Configuration for Hohonu Dataset"
-    }'::jsonb
-)
-ON CONFLICT (slug) DO NOTHING;
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
 
-INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description
-) VALUES (
-    'system',
-    'MODL collection: S3 timeseries',
-    'modl_collection_s3timeseries',
-    'document'::${ADDB_SCHEMA}.object_category,
-    ''
-)
-ON CONFLICT (slug) DO NOTHING;
-
-INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'system',
-    'modl_collection_s3timeseries',
-    'MODL S3 Timeseries',
-    'Default schema for MODL S3 Timeseries collection',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'modl_collection_s3timeseries'
-        LIMIT 1
-    ),
-    '{
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
             "type": "object",
             "$defs": {
                 "VarMap": {
@@ -1008,7 +899,156 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
                 }
             },
             "description": "Configuration for S3 Timeseries Dataset."
-        }'::jsonb
+        }'::jsonb;
+END
+$$ LANGUAGE plpgsql;
+
+
+-- Insert the MODL object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description,
+    data
+) VALUES (
+    'system',
+    'MODL',
+    'modl',
+    'document'::${ADDB_SCHEMA}.object_category,
+    '',
+    ${ADDB_SCHEMA}.modl_object_type_data()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for MODL (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl',
+    'MODL',
+    'Default schema for MODL object type',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_object_schema_json_schema()
+
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default form for MODL (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    form_config,
+    use_form_config
+) VALUES (
+    'system',
+    'modl',
+    'MODL Dataset Metadata Form',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl'
+        LIMIT 1
+    ),
+    1,
+    ${ADDB_SCHEMA}.modl_form_form_config(),
+    true
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'system',
+    'MODL collection: Hohonu',
+    'modl_collection_hohonu',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl_collection_hohonu',
+    'MODL Hohonu',
+    'Default schema for MODL Hohonu collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_hohonu'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'system',
+    'MODL collection: S3 timeseries',
+    'modl_collection_s3timeseries',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl_collection_s3timeseries',
+    'MODL S3 Timeseries',
+    'Default schema for MODL S3 Timeseries collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_s3timeseries'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
 )
 ON CONFLICT (slug) DO NOTHING;
 
