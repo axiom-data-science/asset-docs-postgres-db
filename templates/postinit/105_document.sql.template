@@ -32,7 +32,32 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.document (
 ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 
-UPDATE ${ADDB_SCHEMA}.document SET slug = uuid::text WHERE slug IS NULL;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid) RETURNS text AS $$
+DECLARE
+    new_slug text;
+BEGIN
+
+        new_slug = CONCAT(
+            COALESCE(
+                (
+                    SELECT ot.slug
+                    FROM ${ADDB_SCHEMA}.object_type ot
+                    WHERE ot.uuid = object_type_uuid
+                    LIMIT 1
+                ),
+                'document'
+            ),
+            ':',
+            REPLACE(document_uuid::text, '-', '')
+        );
+    RETURN new_slug;
+END;
+$$ LANGUAGE plpgsql;
+
+UPDATE ${ADDB_SCHEMA}.document d
+SET slug = ${ADDB_SCHEMA}.create_document_slug(d.object_type_uuid, d.uuid)
+WHERE d.slug IS NULL;
 
 ALTER TABLE ${ADDB_SCHEMA}.document
 ALTER COLUMN slug SET NOT NULL;
@@ -252,7 +277,7 @@ BEGIN
 
     IF NEW.slug IS NULL THEN
         IF NEW.uuid IS NOT NULL THEN
-            NEW.slug = (NEW.uuid)::text;
+            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.uuid);
         END IF;
     END IF;
 
