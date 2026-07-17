@@ -3,43 +3,28 @@
 -- MODL (MetOcean Data Lifecycle)
 -- ============================================================================
 
--- Insert the MODL object_type (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description
-) VALUES (
-    'brian@axiomalaska.com',
-    'MODL',
-    'modl',
-    'document'::${ADDB_SCHEMA}.object_category,
-    'MetOcean Data Lifecycle observations'
-)
-ON CONFLICT (slug) DO NOTHING;
 
--- Insert the default schema for MODL (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'brian@axiomalaska.com',
-    'modl',
-    'MODL',
-    'Default schema for MODL object type',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'modl'
-        LIMIT 1
-    ),
-    '{
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN '{
+      "expected_child_types": [
+        {
+          "single": true,
+          "object_type_query": "slug=ilike.%modl_collection_%",
+          "label": "Collection metadata",
+          "description": "Select the collection type that corresponds with your data source",
+          "has_predicate": "has_parent"
+        }
+      ]
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN     '{
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MODL Dataset Metadata Schema",
       "type": "object",
@@ -128,25 +113,8 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
           "enum": ["gov_state", "nonprofit", "industry", "academic", "gov_federal", "tribal"],
           "examples": ["industry"]
         },
-        "geospatial_lat_max": {
-          "type": "number",
-          "description": "Maximum latitude in decimal degrees",
-          "examples": [41.0775]
-        },
-        "geospatial_lat_min": {
-          "type": "number",
-          "description": "Minimum latitude in decimal degrees",
-          "examples": [41.0775]
-        },
-        "geospatial_lon_max": {
-          "type": "number",
-          "description": "Maximum longitude in decimal degrees",
-          "examples": [-71.1855]
-        },
-        "geospatial_lon_min": {
-          "type": "number",
-          "description": "Minimum longitude in decimal degrees",
-          "examples": [-71.1855]
+        "geometry": {
+          "type": "object"
         },
         "id": {
           "type": "string",
@@ -232,7 +200,750 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
         }
       },
       "required": ["title", "id"]
-    }'::jsonb
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_form_form_config()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "id": "modl-metadata-form",
+    "label": "MODL Dataset Metadata Form",
+    "pages": [
+      {
+        "id": "basic-info",
+        "label": "Basic Information",
+        "fields": [
+          {
+            "id": "title",
+            "type": "text",
+            "label": "Dataset Title",
+            "required": true,
+            "description": "Unique dataset identifier in ERDDAP",
+            "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
+          },
+          {
+            "id": "id",
+            "type": "text",
+            "label": "Platform/Station ID",
+            "required": true,
+            "description": "Unique Platform/Station ID",
+            "placeholder": "e.g., SFW01"
+          },
+          {
+            "id": "platform_name",
+            "type": "text",
+            "label": "Platform Name",
+            "description": "Project or individual platform",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "project",
+            "type": "text",
+            "label": "Project",
+            "description": "Name of wind project",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "summary",
+            "type": "long_text",
+            "label": "Summary",
+            "description": "Basic summary of dataset - location, platform, variables collected",
+            "placeholder": "Describe the dataset, location, platform, and variables collected"
+          }
+        ],
+        "description": "Essential dataset identification"
+      },
+      {
+        "id": "creator-info",
+        "label": "Creator Information",
+        "fields": [
+          {
+            "id": "creator_name",
+            "type": "text",
+            "label": "Creator Name",
+            "description": "Name of creator entity",
+            "placeholder": "e.g., South Fork Wind"
+          },
+          {
+            "id": "institution",
+            "type": "text",
+            "label": "Institution",
+            "description": "Institution name",
+            "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
+          },
+          {
+            "id": "creator_address",
+            "type": "text",
+            "label": "Creator Address",
+            "description": "Mailing address",
+            "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
+          },
+          {
+            "id": "creator_state",
+            "type": "text",
+            "label": "Creator State",
+            "description": "State of operation",
+            "placeholder": "e.g., New York"
+          },
+          {
+            "id": "creator_country",
+            "type": "text",
+            "label": "Creator Country",
+            "description": "Creator country",
+            "placeholder": "e.g., USA"
+          },
+          {
+            "id": "creator_email",
+            "type": "text",
+            "label": "Creator Email",
+            "description": "Primary contact email",
+            "placeholder": "e.g., info@southforkwind.com"
+          },
+          {
+            "id": "creator_URL",
+            "type": "text",
+            "label": "Creator Website",
+            "description": "Creator website URL",
+            "placeholder": "e.g., https://southforkwind.com"
+          },
+          {
+            "id": "creator_sector",
+            "type": "select",
+            "label": "Creator Sector",
+            "options": [
+              {
+                "label": "State Government",
+                "value": "gov_state"
+              },
+              {
+                "label": "Nonprofit",
+                "value": "nonprofit"
+              },
+              {
+                "label": "Industry",
+                "value": "industry"
+              },
+              {
+                "label": "Academic",
+                "value": "academic"
+              },
+              {
+                "label": "Federal Government",
+                "value": "gov_federal"
+              },
+              {
+                "label": "Tribal",
+                "value": "tribal"
+              }
+            ],
+            "description": "IOOS classifier for sector"
+          }
+        ],
+        "description": "Owner/operator of platform details"
+      },
+      {
+        "id": "contributor-info",
+        "label": "Contributor Information",
+        "fields": [
+          {
+            "id": "contributor_name",
+            "type": "text",
+            "label": "Contributor Name",
+            "description": "Platform deployment/data provider entity",
+            "placeholder": "e.g., Woods Hole Group"
+          },
+          {
+            "id": "contributor_address",
+            "type": "text",
+            "label": "Contributor Address",
+            "description": "Physical address or city/state/country",
+            "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
+          },
+          {
+            "id": "contributor_email",
+            "type": "text",
+            "label": "Contributor Email",
+            "description": "Contributor primary contact email",
+            "placeholder": "e.g., dwalsh@woodsholegroup.com"
+          },
+          {
+            "id": "contributor_url",
+            "type": "text",
+            "label": "Contributor Website",
+            "description": "Contributor website URL",
+            "placeholder": "e.g., https://www.woodsholegroup.com/"
+          }
+        ],
+        "description": "Platform deployment/data provider entity details"
+      },
+      {
+        "id": "publisher-info",
+        "label": "Publisher Information",
+        "fields": [
+          {
+            "id": "publisher_name",
+            "type": "text",
+            "label": "Publisher Name",
+            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+            "placeholder": "e.g., MARACOOS, NERACOOS"
+          },
+          {
+            "id": "publisher_institution",
+            "type": "text",
+            "label": "Publisher Institution",
+            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
+            "placeholder": "e.g., MARACOOS, NERACOOS"
+          },
+          {
+            "id": "publisher_email",
+            "type": "text",
+            "label": "Publisher Email",
+            "description": "Publisher contact email",
+            "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
+          },
+          {
+            "id": "publisher_phone",
+            "type": "text",
+            "label": "Publisher Phone",
+            "description": "Publisher contact phone",
+            "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
+          },
+          {
+            "id": "publisher_country",
+            "type": "text",
+            "label": "Publisher Country",
+            "description": "Publisher country",
+            "placeholder": "e.g., USA"
+          },
+          {
+            "id": "publisher_url",
+            "type": "text",
+            "label": "Publisher Website",
+            "description": "Publisher website URL",
+            "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
+          },
+          {
+            "id": "publisher_type",
+            "type": "text",
+            "label": "Publisher Type",
+            "description": "Type of publisher",
+            "placeholder": "e.g., institution"
+          }
+        ],
+        "description": "Data management at NERACOOS/MARACOOS"
+      },
+      {
+        "id": "geospatial-info",
+        "label": "Geospatial Information",
+        "fields": [
+          {
+            "id": "geometry",
+            "type": "geometry",
+            "label": "Location",
+            "settings": {
+              "drawPointEnabled": true
+            }
+          }
+        ],
+        "description": "Geographic coordinates"
+      },
+      {
+        "id": "additional-info",
+        "label": "Additional Information",
+        "fields": [
+          {
+            "id": "comment",
+            "type": "long_text",
+            "label": "Comment",
+            "description": "Description of the buoy/platform and contributor",
+            "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
+          },
+          {
+            "id": "acknowledgement",
+            "type": "long_text",
+            "label": "Acknowledgement",
+            "description": "Acknowledgment of financial supporting entities or award numbers",
+            "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
+          },
+          {
+            "id": "infoURL",
+            "type": "text",
+            "label": "Information URL",
+            "description": "Best website for information about program",
+            "placeholder": "e.g., https://southforkwind.com"
+          },
+          {
+            "id": "license",
+            "type": "long_text",
+            "label": "License",
+            "description": "General license language for re-use/access of data",
+            "placeholder": "e.g., The data may be used and redistributed for free..."
+          },
+          {
+            "id": "processing_level",
+            "type": "text",
+            "label": "Processing Level",
+            "description": "Processing level of data (raw, qc, level 1, etc)",
+            "placeholder": "e.g., raw dataset, no qc provided"
+          },
+          {
+            "id": "Instrument",
+            "type": "text",
+            "label": "Instrument(s)",
+            "description": "Instruments used (separate by comma if multiple)",
+            "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
+          }
+        ],
+        "description": "Supplementary metadata"
+      }
+    ],
+    "description": "Form for capturing MODL Dataset Metadata"
+  }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+        "type": "object",
+        "title": "HohonuConfig",
+        "required": [
+            "station",
+            "hohonu_id",
+            "start_date",
+            "latitude",
+            "longitude"
+        ],
+        "properties": {
+            "station": {
+                "type": "string",
+                "title": "Station",
+                "description": "Station name/timeseries_id"
+            },
+            "latitude": {
+                "type": "number",
+                "title": "Latitude",
+                "description": "Fixed latitude of the station"
+            },
+            "hohonu_id": {
+                "type": "string",
+                "title": "Hohonu Id",
+                "description": "Hohonu station ID"
+            },
+            "longitude": {
+                "type": "number",
+                "title": "Longitude",
+                "description": "Fixed longitude of the station"
+            },
+            "start_date": {
+                "type": "string",
+                "title": "Start Date",
+                "format": "date"
+            }
+        },
+        "description": "Configuration for Hohonu Dataset"
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+            "type": "object",
+            "$defs": {
+                "VarMap": {
+                    "type": "object",
+                    "title": "VarMap",
+                    "required": [
+                        "source",
+                        "output"
+                    ],
+                    "properties": {
+                        "output": {
+                            "type": "string",
+                            "title": "Output",
+                            "description": "The output variable name in the dataset"
+                        },
+                        "source": {
+                            "type": "string",
+                            "title": "Source",
+                            "description": "The source variable name in the input data"
+                        }
+                    },
+                    "description": "Configure a single variable mapping"
+                },
+                "DayGlob": {
+                    "type": "object",
+                    "title": "DayGlob",
+                    "properties": {
+                        "day_pattern": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Day Pattern",
+                            "default": null,
+                            "examples": [
+                                "EW01_ADCP_{partition_date:%Y%m%d}_*.txt",
+                                "EW01_wave_ioos_{partition_date:%Y%m%d}_*.txt"
+                            ],
+                            "description": "\nGlob pattern for daily files.\nThe `partition_date` is available for formatting\n"
+                        }
+                    },
+                    "description": "Configure glob patterns for daily files in S3."
+                },
+                "DropColumns": {
+                    "type": "object",
+                    "title": "DropColumns",
+                    "required": [
+                        "column_names"
+                    ],
+                    "properties": {
+                        "column_names": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "title": "Column Names"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "drop",
+                            "title": "Converter Type",
+                            "default": "drop"
+                        }
+                    }
+                },
+                "NcAttributes": {
+                    "type": "object",
+                    "title": "NcAttributes",
+                    "properties": {
+                        "variables": {
+                            "type": "object",
+                            "title": "Variables",
+                            "description": "Variable-specific attributes",
+                            "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": true
+                            }
+                        },
+                        "global_attributes": {
+                            "type": "object",
+                            "title": "Global Attributes",
+                            "description": "Global attributes to add to the NetCDF file",
+                            "additionalProperties": true
+                        },
+                        "additional_attributes_file": {
+                            "type": "string",
+                            "title": "Additional Attributes File",
+                            "default": null,
+                            "description": "Path to the file that defines additional attributes for source"
+                        }
+                    },
+                    "description": "Configure variable and global dataset attributes"
+                },
+                "SplitOperator": {
+                    "type": "object",
+                    "title": "SplitOperator",
+                    "required": [
+                        "sep",
+                        "output_variables",
+                        "source_variable"
+                    ],
+                    "properties": {
+                        "sep": {
+                            "type": "string",
+                            "title": "Sep",
+                            "description": "The separator"
+                        },
+                        "col_data_type": {
+                            "type": "string",
+                            "title": "Col Data Type",
+                            "default": "float",
+                            "description": "The data type of the new variables"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "split",
+                            "title": "Converter Type",
+                            "default": "split"
+                        },
+                        "source_variable": {
+                            "type": "string",
+                            "title": "Source Variable",
+                            "description": "The source variable to split into multiple columns"
+                        },
+                        "output_variables": {
+                            "type": "object",
+                            "title": "Output Variables",
+                            "description": "Mapping of index number to output variable.",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "description": "Takes the source variable, splits it on the separator and  maps the resulting array to new variables"
+                },
+                "S3SourceConfig": {
+                    "type": "object",
+                    "title": "S3SourceConfig",
+                    "required": [
+                        "bucket"
+                    ],
+                    "properties": {
+                        "bucket": {
+                            "type": "string",
+                            "title": "Bucket",
+                            "description": "The S3 bucket name"
+                        },
+                        "prefix": {
+                            "type": "string",
+                            "title": "Prefix",
+                            "default": "/",
+                            "description": "The S3 prefix/folder where files are located"
+                        }
+                    },
+                    "description": "Configuration for data coming from an S3 Bucket"
+                },
+                "PandasCSVReader": {
+                    "type": "object",
+                    "title": "PandasCSVReader",
+                    "properties": {
+                        "sep": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Sep",
+                            "default": null,
+                            "description": "CSV delimiter"
+                        },
+                        "comment": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Comment",
+                            "default": null,
+                            "description": "CSV line comment character"
+                        },
+                        "na_values": {
+                            "type": "string",
+                            "title": "Na Values",
+                            "default": "None"
+                        }
+                    },
+                    "description": "Configure Pandas to read CSVs in S3.\n\nPassed through to `pd.read_csv`, so see full argument definitions at\nhttps://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html"
+                },
+                "ProfileConverter": {
+                    "type": "object",
+                    "title": "ProfileConverter",
+                    "required": [
+                        "profile_data"
+                    ],
+                    "properties": {
+                        "profile_data": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/$defs/ProfileDepthMappings"
+                            },
+                            "title": "Profile Data",
+                            "description": "Mapping for variables with multiple depth levels"
+                        },
+                        "converter_type": {
+                            "type": "string",
+                            "const": "profile",
+                            "title": "Converter Type",
+                            "default": "profile"
+                        }
+                    }
+                },
+                "ProfileDepthMappings": {
+                    "type": "object",
+                    "title": "ProfileDepthMappings",
+                    "required": [
+                        "mappings"
+                    ],
+                    "properties": {
+                        "depth": {
+                            "type": "number",
+                            "title": "Depth",
+                            "default": null,
+                            "description": "Optional- fixed depth for the mapping."
+                        },
+                        "mappings": {
+                            "type": "object",
+                            "title": "Mappings",
+                            "description": "Maps input variables to output variables at the current depth ",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "title": "S3TimeseriesConfig",
+            "required": [
+                "start_date",
+                "reader",
+                "file_pattern",
+                "station"
+            ],
+            "properties": {
+                "reader": {
+                    "$ref": "#/$defs/PandasCSVReader"
+                },
+                "station": {
+                    "type": "string",
+                    "title": "Station",
+                    "description": "Station name/timeseries_id"
+                },
+                "latitude": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "title": "Latitude",
+                    "default": null,
+                    "description": "Fixed latitude of the station"
+                },
+                "longitude": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "title": "Longitude",
+                    "default": null,
+                    "description": "Fixed longitude of the station"
+                },
+                "s3_source": {
+                    "$ref": "#/$defs/S3SourceConfig",
+                    "description": "Configuration for accessing data in S3"
+                },
+                "attributes": {
+                    "$ref": "#/$defs/NcAttributes",
+                    "description": "NetCDF attributes to add to the dataset and variables"
+                },
+                "start_date": {
+                    "type": "string",
+                    "title": "Start Date",
+                    "format": "date"
+                },
+                "dataset_type": {
+                    "type": "string",
+                    "title": "Dataset Type",
+                    "default": "timeseries",
+                    "description": "Dateset type (timeseries or profile)"
+                },
+                "file_pattern": {
+                    "$ref": "#/$defs/DayGlob",
+                    "description": "Source file name pattern"
+                },
+                "source_time_var": {
+                    "type": "string",
+                    "title": "Source Time Var",
+                    "default": "datetime"
+                },
+                "variable_mappings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/VarMap"
+                    },
+                    "title": "Variable Mappings",
+                    "description": "Variable name mappings, source to output dataset destination name"
+                },
+                "variable_converter": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/SplitOperator"
+                            },
+                            {
+                                "$ref": "#/$defs/DropColumns"
+                            },
+                            {
+                                "$ref": "#/$defs/ProfileConverter"
+                            }
+                        ]
+                    },
+                    "title": "Variable Converter",
+                    "default": null,
+                    "description": "List of variable conversion steps"
+                }
+            },
+            "description": "Configuration for S3 Timeseries Dataset."
+        }'::jsonb;
+END
+$$ LANGUAGE plpgsql;
+
+
+-- Insert the MODL object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description,
+    data
+) VALUES (
+    'system',
+    'MODL',
+    'modl',
+    'document'::${ADDB_SCHEMA}.object_category,
+    '',
+    ${ADDB_SCHEMA}.modl_object_type_data()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for MODL (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl',
+    'MODL',
+    'Default schema for MODL object type',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_object_schema_json_schema()
+
 )
 ON CONFLICT (slug) DO NOTHING;
 
@@ -247,7 +958,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     form_config,
     use_form_config
 ) VALUES (
-    'brian@axiomalaska.com',
+    'system',
     'modl',
     'MODL Dataset Metadata Form',
     true,
@@ -257,303 +968,87 @@ INSERT INTO ${ADDB_SCHEMA}.form (
         LIMIT 1
     ),
     1,
-    '{
-      "id": "modl-metadata-form",
-      "label": "MODL Dataset Metadata Form",
-      "description": "Form for capturing MODL Dataset Metadata",
-      "wizard_steps": [
-        {
-          "id": "basic-info",
-          "label": "Basic Information",
-          "description": "Essential dataset identification",
-          "fields": [
-            {
-              "prop": "title",
-              "type": "text",
-              "label": "Dataset Title",
-              "description": "Unique dataset identifier in ERDDAP",
-              "required": true,
-              "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
-            },
-            {
-              "prop": "id",
-              "type": "text",
-              "label": "Platform/Station ID",
-              "description": "Unique Platform/Station ID",
-              "required": true,
-              "placeholder": "e.g., SFW01"
-            },
-            {
-              "prop": "platform_name",
-              "type": "text",
-              "label": "Platform Name",
-              "description": "Project or individual platform",
-              "placeholder": "e.g., South Fork Wind"
-            },
-            {
-              "prop": "project",
-              "type": "text",
-              "label": "Project",
-              "description": "Name of wind project",
-              "placeholder": "e.g., South Fork Wind"
-            },
-            {
-              "prop": "summary",
-              "type": "long_text",
-              "label": "Summary",
-              "description": "Basic summary of dataset - location, platform, variables collected",
-              "placeholder": "Describe the dataset, location, platform, and variables collected"
-            }
-          ]
-        },
-        {
-          "id": "creator-info",
-          "label": "Creator Information",
-          "description": "Owner/operator of platform details",
-          "fields": [
-            {
-              "prop": "creator_name",
-              "type": "text",
-              "label": "Creator Name",
-              "description": "Name of creator entity",
-              "placeholder": "e.g., South Fork Wind"
-            },
-            {
-              "prop": "institution",
-              "type": "text",
-              "label": "Institution",
-              "description": "Institution name",
-              "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
-            },
-            {
-              "prop": "creator_address",
-              "type": "text",
-              "label": "Creator Address",
-              "description": "Mailing address",
-              "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
-            },
-            {
-              "prop": "creator_state",
-              "type": "text",
-              "label": "Creator State",
-              "description": "State of operation",
-              "placeholder": "e.g., New York"
-            },
-            {
-              "prop": "creator_country",
-              "type": "text",
-              "label": "Creator Country",
-              "description": "Creator country",
-              "placeholder": "e.g., USA"
-            },
-            {
-              "prop": "creator_email",
-              "type": "text",
-              "label": "Creator Email",
-              "description": "Primary contact email",
-              "placeholder": "e.g., info@southforkwind.com"
-            },
-            {
-              "prop": "creator_URL",
-              "type": "text",
-              "label": "Creator Website",
-              "description": "Creator website URL",
-              "placeholder": "e.g., https://southforkwind.com"
-            },
-            {
-              "prop": "creator_sector",
-              "type": "select",
-              "label": "Creator Sector",
-              "description": "IOOS classifier for sector",
-              "options": [
-                { "label": "State Government", "value": "gov_state" },
-                { "label": "Nonprofit", "value": "nonprofit" },
-                { "label": "Industry", "value": "industry" },
-                { "label": "Academic", "value": "academic" },
-                { "label": "Federal Government", "value": "gov_federal" },
-                { "label": "Tribal", "value": "tribal" }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "contributor-info",
-          "label": "Contributor Information",
-          "description": "Platform deployment/data provider entity details",
-          "fields": [
-            {
-              "prop": "contributor_name",
-              "type": "text",
-              "label": "Contributor Name",
-              "description": "Platform deployment/data provider entity",
-              "placeholder": "e.g., Woods Hole Group"
-            },
-            {
-              "prop": "contributor_address",
-              "type": "text",
-              "label": "Contributor Address",
-              "description": "Physical address or city/state/country",
-              "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
-            },
-            {
-              "prop": "contributor_email",
-              "type": "text",
-              "label": "Contributor Email",
-              "description": "Contributor primary contact email",
-              "placeholder": "e.g., dwalsh@woodsholegroup.com"
-            },
-            {
-              "prop": "contributor_url",
-              "type": "text",
-              "label": "Contributor Website",
-              "description": "Contributor website URL",
-              "placeholder": "e.g., https://www.woodsholegroup.com/"
-            }
-          ]
-        },
-        {
-          "id": "publisher-info",
-          "label": "Publisher Information",
-          "description": "Data management at NERACOOS/MARACOOS",
-          "fields": [
-            {
-              "prop": "publisher_name",
-              "type": "text",
-              "label": "Publisher Name",
-              "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-              "placeholder": "e.g., MARACOOS, NERACOOS"
-            },
-            {
-              "prop": "publisher_institution",
-              "type": "text",
-              "label": "Publisher Institution",
-              "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-              "placeholder": "e.g., MARACOOS, NERACOOS"
-            },
-            {
-              "prop": "publisher_email",
-              "type": "text",
-              "label": "Publisher Email",
-              "description": "Publisher contact email",
-              "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
-            },
-            {
-              "prop": "publisher_phone",
-              "type": "text",
-              "label": "Publisher Phone",
-              "description": "Publisher contact phone",
-              "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
-            },
-            {
-              "prop": "publisher_country",
-              "type": "text",
-              "label": "Publisher Country",
-              "description": "Publisher country",
-              "placeholder": "e.g., USA"
-            },
-            {
-              "prop": "publisher_url",
-              "type": "text",
-              "label": "Publisher Website",
-              "description": "Publisher website URL",
-              "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
-            },
-            {
-              "prop": "publisher_type",
-              "type": "text",
-              "label": "Publisher Type",
-              "description": "Type of publisher",
-              "placeholder": "e.g., institution"
-            }
-          ]
-        },
-        {
-          "id": "geospatial-info",
-          "label": "Geospatial Information",
-          "description": "Geographic coordinates",
-          "fields": [
-            {
-              "prop": "geospatial_lat_min",
-              "type": "number",
-              "label": "Minimum Latitude",
-              "description": "Minimum latitude in decimal degrees",
-              "placeholder": "e.g., 41.0775"
-            },
-            {
-              "prop": "geospatial_lat_max",
-              "type": "number",
-              "label": "Maximum Latitude",
-              "description": "Maximum latitude in decimal degrees",
-              "placeholder": "e.g., 41.0775"
-            },
-            {
-              "prop": "geospatial_lon_min",
-              "type": "number",
-              "label": "Minimum Longitude",
-              "description": "Minimum longitude in decimal degrees",
-              "placeholder": "e.g., -71.1855"
-            },
-            {
-              "prop": "geospatial_lon_max",
-              "type": "number",
-              "label": "Maximum Longitude",
-              "description": "Maximum longitude in decimal degrees",
-              "placeholder": "e.g., -71.1855"
-            }
-          ]
-        },
-        {
-          "id": "additional-info",
-          "label": "Additional Information",
-          "description": "Supplementary metadata",
-          "fields": [
-            {
-              "prop": "comment",
-              "type": "long_text",
-              "label": "Comment",
-              "description": "Description of the buoy/platform and contributor",
-              "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
-            },
-            {
-              "prop": "acknowledgement",
-              "type": "long_text",
-              "label": "Acknowledgement",
-              "description": "Acknowledgment of financial supporting entities or award numbers",
-              "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
-            },
-            {
-              "prop": "infoURL",
-              "type": "text",
-              "label": "Information URL",
-              "description": "Best website for information about program",
-              "placeholder": "e.g., https://southforkwind.com"
-            },
-            {
-              "prop": "license",
-              "type": "long_text",
-              "label": "License",
-              "description": "General license language for re-use/access of data",
-              "placeholder": "e.g., The data may be used and redistributed for free..."
-            },
-            {
-              "prop": "processing_level",
-              "type": "text",
-              "label": "Processing Level",
-              "description": "Processing level of data (raw, qc, level 1, etc)",
-              "placeholder": "e.g., raw dataset, no qc provided"
-            },
-            {
-              "prop": "Instrument",
-              "type": "text",
-              "label": "Instrument(s)",
-              "description": "Instruments used (separate by comma if multiple)",
-              "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
-            }
-          ]
-        }
-      ]
-    }'::jsonb,
+    ${ADDB_SCHEMA}.modl_form_form_config(),
     true
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'system',
+    'MODL collection: Hohonu',
+    'modl_collection_hohonu',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl_collection_hohonu',
+    'MODL Hohonu',
+    'Default schema for MODL Hohonu collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_hohonu'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'system',
+    'MODL collection: S3 timeseries',
+    'modl_collection_s3timeseries',
+    'document'::${ADDB_SCHEMA}.object_category,
+    ''
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl_collection_s3timeseries',
+    'MODL S3 Timeseries',
+    'Default schema for MODL S3 Timeseries collection',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_collection_s3timeseries'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
 )
 ON CONFLICT (slug) DO NOTHING;
 

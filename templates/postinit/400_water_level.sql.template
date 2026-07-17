@@ -4,43 +4,10 @@
 -- WATER LEVEL
 -- ============================================================================
 
--- Insert the Water Level object_type (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description
-) VALUES (
-    'brian@axiomalaska.com',
-    'Water Level',
-    'water-level',
-    'document'::${ADDB_SCHEMA}.object_category,
-    'Water level observations and measurements'
-)
-ON CONFLICT (slug) DO NOTHING;
-
--- Insert the default schema for Water Level (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'brian@axiomalaska.com',
-    'water-level-default-schema',
-    'Water Level Default Schema',
-    'Default schema for water level object type with COLLAB metadata',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'water-level'
-        LIMIT 1
-    ),
-    '{
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.water_level_object_schema_json_schema()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN '{
       "type": "object",
       "title": "COLLAB Water Level Metadata",
       "$schema": "http://json-schema.org/draft-06/schema#",
@@ -794,32 +761,15 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
         }
       },
       "additionalProperties": true
-    }'::jsonb
-)
-ON CONFLICT (slug) DO NOTHING;
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
--- Insert the default form for Water Level (skip if slug already exists)
-INSERT INTO ${ADDB_SCHEMA}.form (
-    owner_sub,
-    slug,
-    label,
-    is_schema_and_version_default,
-    object_type_uuid,
-    object_schema_version,
-    form_config,
-    use_form_config
-) VALUES (
-    'brian@axiomalaska.com',
-    'water-level',
-    'Water Level',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'water-level'
-        LIMIT 1
-    ),
-    1,
-    '{
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.water_level_form_form_config()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN     '{
       "id": "collab-water level metadata",
       "label": "COLLAB Water Level Metadata",
       "pages": [
@@ -2421,7 +2371,74 @@ INSERT INTO ${ADDB_SCHEMA}.form (
       "settings": {
         "url_navigable": true
       }
-    }'::jsonb,
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+-- Insert the Water Level object_type (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description
+) VALUES (
+    'system',
+    'Water Level',
+    'water_level',
+    'document'::${ADDB_SCHEMA}.object_category,
+    'Water level observations and measurements'
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default schema for Water Level (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'water_level',
+    'Water Level Default Schema',
+    'Default schema for water level object type with COLLAB metadata',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'water_level'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.water_level_object_schema_json_schema()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Insert the default form for Water Level (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    form_config,
+    use_form_config
+) VALUES (
+    'system',
+    'water_level',
+    'Water Level',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'water_level'
+        LIMIT 1
+    ),
+    1,
+    ${ADDB_SCHEMA}.water_level_form_form_config(),
     true
 )
 ON CONFLICT (slug) DO NOTHING;
