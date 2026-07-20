@@ -40,7 +40,8 @@ BEGIN
                   "data_type": {
                     "enum": [
                       "String",
-                      "float"
+                      "float",
+                      "dateString"
                     ],
                     "type": "string"
                   },

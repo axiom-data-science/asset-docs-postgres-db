@@ -10,13 +10,17 @@ BEGIN
     RETURN '{
       "expected_child_types": [
         {
-          "single": true,
+          "single": false,
           "object_type_query": "slug=ilike.%modl_collection_%",
-          "label": "Collection metadata",
+          "label": "Asset collector metadata",
           "description": "Select the collection type that corresponds with your data source",
           "has_predicate": "has_parent"
         }
-      ]
+      ],
+      "field_mappings": {
+        "slug": "id",
+        "label": "title"
+      }
     }'::jsonb;
 END;
 $$ LANGUAGE plpgsql;
@@ -209,7 +213,7 @@ RETURNS jsonb AS $$
 BEGIN
   RETURN '{
     "id": "modl-metadata-form",
-    "label": "MODL Dataset Metadata Form",
+    "label": "Asset Metadata",
     "pages": [
       {
         "id": "basic-info",
@@ -235,14 +239,14 @@ BEGIN
             "id": "platform_name",
             "type": "text",
             "label": "Platform Name",
-            "description": "Project or individual platform",
+            "description": "If different from dataset title and platform/station ID",
             "placeholder": "e.g., South Fork Wind"
           },
           {
             "id": "project",
             "type": "text",
             "label": "Project",
-            "description": "Name of wind project",
+            "description": "Name of project",
             "placeholder": "e.g., South Fork Wind"
           },
           {
@@ -443,7 +447,12 @@ BEGIN
             "type": "geometry",
             "label": "Location",
             "settings": {
-              "drawPointEnabled": true
+              "drawPointEnabled": true,
+              "defaultCenter": {
+                "lat": 42,
+                "lon": -73,
+                "zoom": 5.5
+              }
             }
           }
         ],
@@ -504,6 +513,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_hohonu_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "field_mappings": {
+      "label": "station"
+    }
+  }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
 RETURNS jsonb AS $$
@@ -550,6 +569,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "field_mappings": {
+      "label": "station"
+    }
+  }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
 RETURNS jsonb AS $$
@@ -980,13 +1010,15 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     label,
     slug,
     category,
-    description
+    description,
+    data
 ) VALUES (
     'system',
     'MODL collection: Hohonu',
     'modl_collection_hohonu',
     'document'::${ADDB_SCHEMA}.object_category,
-    ''
+    '',
+    ${ADDB_SCHEMA}.modl_collection_hohonu_object_type_data()
 )
 ON CONFLICT (slug) DO NOTHING;
 
@@ -1019,13 +1051,15 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     label,
     slug,
     category,
-    description
+    description,
+    data
 ) VALUES (
     'system',
     'MODL collection: S3 timeseries',
     'modl_collection_s3timeseries',
     'document'::${ADDB_SCHEMA}.object_category,
-    ''
+    '',
+    ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_type_data()
 )
 ON CONFLICT (slug) DO NOTHING;
 
