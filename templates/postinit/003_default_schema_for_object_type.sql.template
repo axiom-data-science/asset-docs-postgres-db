@@ -56,3 +56,153 @@ DECLARE
     RETURN default_schema;
   end
 $$ language plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_relaxed_schema_at_object_schema_uuid(object_schema_uuid uuid) RETURNS jsonb AS
+$$
+BEGIN
+    RETURN ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(
+        (SELECT json_schema FROM ${ADDB_SCHEMA}.object_schema WHERE uuid = object_schema_uuid)
+    );
+END
+$$ language plpgsql;
+
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(schema_json jsonb) RETURNS jsonb AS
+$$
+DECLARE
+    key text;
+    value jsonb;
+    rewritten jsonb := '{}'::jsonb;
+  BEGIN
+    IF schema_json IS NULL THEN
+      RETURN NULL;
+    END IF;
+
+    IF jsonb_typeof(schema_json) = 'object' THEN
+      FOR key, value IN SELECT * FROM jsonb_each(schema_json) LOOP
+        -- Remove requiredness-like constraints for draft validation.
+        IF key = ANY (ARRAY['required', 'dependentRequired', 'minProperties']) THEN
+          CONTINUE;
+        END IF;
+
+        IF key = ANY (ARRAY['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
+           AND jsonb_typeof(value) = 'object' THEN
+          rewritten := rewritten || jsonb_build_object(
+            key,
+            (
+              SELECT COALESCE(
+                jsonb_object_agg(k, ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(v)),
+                '{}'::jsonb
+              )
+              FROM jsonb_each(value) AS nested(k, v)
+            )
+          );
+        ELSIF key = ANY (ARRAY['items', 'additionalProperties', 'unevaluatedProperties', 'contains', 'if', 'then', 'else', 'not', 'propertyNames']) THEN
+          rewritten := rewritten || jsonb_build_object(
+            key,
+            ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(value)
+          );
+        ELSIF key = ANY (ARRAY['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+            AND jsonb_typeof(value) = 'array' THEN
+          rewritten := rewritten || jsonb_build_object(
+            key,
+            (
+              SELECT COALESCE(
+                jsonb_agg(${ADDB_SCHEMA}.relax_json_schema_presence_constraints(elem)),
+                '[]'::jsonb
+              )
+              FROM jsonb_array_elements(value) AS nested(elem)
+            )
+          );
+        ELSE
+          rewritten := rewritten || jsonb_build_object(key, value);
+        END IF;
+      END LOOP;
+
+      RETURN rewritten;
+    ELSIF jsonb_typeof(schema_json) = 'array' THEN
+      RETURN (
+        SELECT COALESCE(
+          jsonb_agg(${ADDB_SCHEMA}.relax_json_schema_presence_constraints(elem)),
+          '[]'::jsonb
+        )
+        FROM jsonb_array_elements(schema_json) AS nested(elem)
+      );
+    END IF;
+
+    RETURN schema_json;
+END
+$$ language plpgsql;
+
+
+DO $$
+DECLARE
+    dummy_object jsonb := '{
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Test Schema",
+        "type": "object",
+        "required":["title"],
+        "properties": {
+            "title": {
+                "type": "string"
+            }
+        }
+    }'::jsonb;
+
+    complex_dummy_object jsonb := '{
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Complex Test Schema",
+        "type": "object",
+        "required":["title"],
+        "properties": {
+            "title": {
+                "type": "object",
+                "required": ["subtitle"],
+                "properties": {
+                    "subtitle": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }'::jsonb;
+BEGIN
+  ASSERT
+    ${ADDB_SCHEMA}.relax_json_schema_presence_constraints('{}'::jsonb) = '{}'::jsonb,
+    'No-op operation must return identical';
+
+  ASSERT
+    ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(
+        dummy_object
+    ) = '{
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Test Schema",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        }
+      }
+    }'::jsonb,
+    'Must remove required property on schema';
+
+  ASSERT
+    ${ADDB_SCHEMA}.relax_json_schema_presence_constraints(
+        complex_dummy_object
+    ) = '{
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Complex Test Schema",
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "object",
+                "properties": {
+                    "subtitle": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }'::jsonb,
+    'Must remove nested required property on schema';
+END $$;
