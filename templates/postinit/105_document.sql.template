@@ -211,7 +211,10 @@ USING (
 
 
 CREATE OR REPLACE FUNCTION asset_doc_insert_update_trigger() RETURNS TRIGGER AS $$
-
+DECLARE
+    default_schema_record ${ADDB_SCHEMA}.object_schema;
+    validation_schema jsonb;
+    schema_mode text;
 BEGIN
     IF current_setting('request.jwt.claims', true) IS NOT NULL THEN
         IF OLD.owner_sub IS NOT NULL THEN
@@ -281,12 +284,23 @@ BEGIN
         END IF;
     END IF;
 
+    -- Validate document data against schema.
+    -- Draft documents (published = false) validate against a relaxed schema
+    -- that ignores presence constraints (required, dependentRequired, minProperties).
+    -- Published documents (published = true) validate against the strict schema
+    -- with all constraints enforced.
+    default_schema_record := ${ADDB_SCHEMA}.get_default_schema_at_object_type_uuid(NEW.object_type_uuid);
+
+    IF NEW.published THEN
+        validation_schema := (default_schema_record).json_schema;
+        schema_mode := 'strict';
+    ELSE
+        validation_schema := ${ADDB_SCHEMA}.relax_json_schema_presence_constraints((default_schema_record).json_schema);
+        schema_mode := 'draft';
+    END IF;
+
     IF NOT jsonb_matches_schema(
-        (
-            (
-                ${ADDB_SCHEMA}.get_default_schema_at_object_type_uuid(NEW.object_type_uuid)
-            ).json_schema
-        )::json,
+        (validation_schema)::json,
         (NEW.data)::jsonb
     ) THEN
         RAISE sqlstate 'PGRST' USING
@@ -294,11 +308,12 @@ BEGIN
                 -- 'code' must be present, and also a string
                 'code', 'PT400',
                 'message', 'json_data_invalid',
-                'details', 'JSON data is invalid according to the incoming schema',
+                'details', 'JSON data is invalid according to the ' || schema_mode || ' schema',
+                'mode', schema_mode,
                 -- *Annoying*, but PostgREST validates that hint is a string.
                 'hint', to_json(
                     jsonschema_validation_errors(
-                        (${ADDB_SCHEMA}.get_default_schema_at_object_type_uuid(NEW.object_type_uuid)).json_schema::json,
+                        (validation_schema)::json,
                         (NEW.data)::json
                     )
                 )::text
