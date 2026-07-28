@@ -352,3 +352,320 @@ ON CONFLICT (uuid) DO UPDATE SET
     label = EXCLUDED.label,
     description = EXCLUDED.description,
     comments = EXCLUDED.comments;
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    uuid,
+    owner_sub,
+    label,
+    slug,
+    category,
+    description,
+    data
+)
+VALUES
+    (
+        '10000000-0000-0000-0000-000000000101'::uuid,
+        'seed-superadmin',
+        'Seed Parent Type',
+        'seed-parent-type',
+        'document'::${ADDB_SCHEMA}.object_category,
+        'Mock parent object type that expects child documents of seed-child-type',
+        '{
+            "expected_child_types": [
+                {
+                    "single": false,
+                    "object_type_slug": "seed-child-type",
+                    "label": "Seed Child",
+                    "description": "Child document attached to Seed Parent",
+                    "predicate": "has_parent",
+                    "has_predicate": "has_child",
+                    "presidence": 1
+                }
+            ]
+        }'::jsonb
+    ),
+    (
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-superadmin',
+        'Seed Child Type',
+        'seed-child-type',
+        'document'::${ADDB_SCHEMA}.object_category,
+        'Mock child object type used to model parent/child document links',
+        '{
+            "expected_child_types": [
+                {
+                    "single": false,
+                    "object_type_slug": "seed-grandchild-type",
+                    "label": "Seed Grandchild",
+                    "description": "Second-level child attached to Seed Child",
+                    "predicate": "has_parent",
+                    "has_predicate": "has_child",
+                    "presidence": 1
+                }
+            ]
+        }'::jsonb
+    ),
+    (
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-superadmin',
+        'Seed Grandchild Type',
+        'seed-grandchild-type',
+        'document'::${ADDB_SCHEMA}.object_category,
+        'Mock grandchild object type for two-level parent/child hierarchy tests',
+        '{"expected_child_types": []}'::jsonb
+    )
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    slug = EXCLUDED.slug,
+    category = EXCLUDED.category,
+    description = EXCLUDED.description,
+    data = EXCLUDED.data;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    uuid,
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+)
+VALUES
+    (
+        '30000000-0000-0000-0000-000000000101'::uuid,
+        'seed-superadmin',
+        'seed-parent-schema',
+        'Seed Parent Schema',
+        'Default schema for Seed Parent Type',
+        true,
+        '10000000-0000-0000-0000-000000000101'::uuid,
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Seed Parent Schema","type":"object","additionalProperties":true}'::jsonb
+    ),
+    (
+        '30000000-0000-0000-0000-000000000102'::uuid,
+        'seed-superadmin',
+        'seed-child-schema',
+        'Seed Child Schema',
+        'Default schema for Seed Child Type',
+        true,
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Seed Child Schema","type":"object","additionalProperties":true}'::jsonb
+    ),
+    (
+        '30000000-0000-0000-0000-000000000103'::uuid,
+        'seed-superadmin',
+        'seed-grandchild-schema',
+        'Seed Grandchild Schema',
+        'Default schema for Seed Grandchild Type',
+        true,
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Seed Grandchild Schema","type":"object","additionalProperties":true}'::jsonb
+    )
+ON CONFLICT (slug) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    is_type_default = EXCLUDED.is_type_default,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    json_schema = EXCLUDED.json_schema;
+
+INSERT INTO ${ADDB_SCHEMA}.document (
+    uuid,
+    owner_sub,
+    lock_sub,
+    published,
+    subs_for_select,
+    roles_for_select,
+    subs_for_update,
+    roles_for_update,
+    data,
+    attrs,
+    label,
+    description,
+    comments,
+    object_type_uuid,
+    slug
+)
+VALUES
+    (
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"parent","name":"parent-alpha"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Parent Alpha',
+        'Mock parent document A',
+        '',
+        '10000000-0000-0000-0000-000000000101'::uuid,
+        'seed-parent-alpha'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000102'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"parent","name":"parent-beta"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Parent Beta',
+        'Mock parent document B',
+        '',
+        '10000000-0000-0000-0000-000000000101'::uuid,
+        'seed-parent-beta'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-alpha-1"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Alpha 1',
+        'Mock child document 1 under parent alpha',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-alpha-1'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000112'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-alpha-2"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Alpha 2',
+        'Mock child document 2 under parent alpha',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-alpha-2'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000113'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-beta-1"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Beta 1',
+        'Mock child document under parent beta',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-beta-1'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000121'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-a"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1A',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-a'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000122'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-b"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1B',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-b'
+    )
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    lock_sub = EXCLUDED.lock_sub,
+    published = EXCLUDED.published,
+    subs_for_select = EXCLUDED.subs_for_select,
+    roles_for_select = EXCLUDED.roles_for_select,
+    subs_for_update = EXCLUDED.subs_for_update,
+    roles_for_update = EXCLUDED.roles_for_update,
+    data = EXCLUDED.data,
+    attrs = EXCLUDED.attrs,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    comments = EXCLUDED.comments,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    slug = EXCLUDED.slug;
+
+INSERT INTO ${ADDB_SCHEMA}.relationship (
+    uuid,
+    from_document_uuid,
+    to_document_uuid,
+    predicate_uuid,
+    data
+)
+VALUES
+    (
+        '40000000-0000-0000-0000-000000000101'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000102'::uuid,
+        '20000000-0000-0000-0000-000000000112'::uuid,
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000103'::uuid,
+        '20000000-0000-0000-0000-000000000113'::uuid,
+        '20000000-0000-0000-0000-000000000102'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000104'::uuid,
+        '20000000-0000-0000-0000-000000000121'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000105'::uuid,
+        '20000000-0000-0000-0000-000000000122'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    )
+ON CONFLICT (from_document_uuid, to_document_uuid, predicate_uuid) DO UPDATE SET
+    data = EXCLUDED.data;
