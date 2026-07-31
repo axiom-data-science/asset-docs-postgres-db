@@ -575,6 +575,57 @@ VALUES
         'seed-child-beta-1'
     ),
     (
+        '20000000-0000-0000-0000-000000000114'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-alpha-3"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Alpha 3',
+        'Mock child document 3 under parent alpha',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-alpha-3'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000115'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-alpha-4"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Alpha 4',
+        'Mock child document 4 under parent alpha',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-alpha-4'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000116'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"child","name":"child-alpha-5"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Child Alpha 5',
+        'Mock child document 5 under parent alpha',
+        '',
+        '10000000-0000-0000-0000-000000000102'::uuid,
+        'seed-child-alpha-5'
+    ),
+    (
         '20000000-0000-0000-0000-000000000121'::uuid,
         'seed-superadmin',
         NULL,
@@ -607,6 +658,74 @@ VALUES
         '',
         '10000000-0000-0000-0000-000000000103'::uuid,
         'seed-grandchild-alpha-1-b'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000123'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-c"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1C',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-c'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000124'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-d"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1D',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-d'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000125'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-e"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1E',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-e'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000126'::uuid,
+        'seed-superadmin',
+        NULL,
+        true,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '[]'::jsonb,
+        '{"seed":true,"level":"grandchild","name":"grandchild-alpha-1-f"}'::jsonb,
+        '{"seed_group":"hierarchy"}'::jsonb,
+        'Seed Grandchild Alpha 1F',
+        'Mock second-level child document under child alpha 1',
+        '',
+        '10000000-0000-0000-0000-000000000103'::uuid,
+        'seed-grandchild-alpha-1-f'
     )
 ON CONFLICT (uuid) DO UPDATE SET
     owner_sub = EXCLUDED.owner_sub,
@@ -654,6 +773,27 @@ VALUES
         '{"seed":true,"chain":"child_to_parent"}'::jsonb
     ),
     (
+        '40000000-0000-0000-0000-000000000106'::uuid,
+        '20000000-0000-0000-0000-000000000114'::uuid,
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000107'::uuid,
+        '20000000-0000-0000-0000-000000000115'::uuid,
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000108'::uuid,
+        '20000000-0000-0000-0000-000000000116'::uuid,
+        '20000000-0000-0000-0000-000000000101'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"child_to_parent"}'::jsonb
+    ),
+    (
         '40000000-0000-0000-0000-000000000104'::uuid,
         '20000000-0000-0000-0000-000000000121'::uuid,
         '20000000-0000-0000-0000-000000000111'::uuid,
@@ -663,6 +803,34 @@ VALUES
     (
         '40000000-0000-0000-0000-000000000105'::uuid,
         '20000000-0000-0000-0000-000000000122'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000109'::uuid,
+        '20000000-0000-0000-0000-000000000123'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000110'::uuid,
+        '20000000-0000-0000-0000-000000000124'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000111'::uuid,
+        '20000000-0000-0000-0000-000000000125'::uuid,
+        '20000000-0000-0000-0000-000000000111'::uuid,
+        (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
+        '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000112'::uuid,
+        '20000000-0000-0000-0000-000000000126'::uuid,
         '20000000-0000-0000-0000-000000000111'::uuid,
         (SELECT p.uuid FROM ${ADDB_SCHEMA}.predicate p WHERE p.predicate = 'has_parent'),
         '{"seed":true,"chain":"grandchild_to_child"}'::jsonb
