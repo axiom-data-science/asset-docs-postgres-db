@@ -33,7 +33,7 @@ ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid, slug text default null) RETURNS text AS $$
 DECLARE
     new_slug text;
 BEGIN
@@ -49,7 +49,7 @@ BEGIN
                 'document'
             ),
             ':',
-            REPLACE(document_uuid::text, '-', '')
+            COALESCE(NULLIF(slug, ''), REPLACE(document_uuid::text, '-', ''))
         );
     RETURN new_slug;
 END;
@@ -278,11 +278,11 @@ BEGIN
         END IF;
     END IF;
 
-    IF NEW.slug IS NULL THEN
-        IF NEW.uuid IS NOT NULL THEN
-            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.uuid);
-        END IF;
+
+    IF NEW.uuid IS NOT NULL THEN
+        NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.uuid, NEW.slug);
     END IF;
+
 
     -- Validate document data against schema.
     -- Draft documents (published = false) validate against a relaxed schema
