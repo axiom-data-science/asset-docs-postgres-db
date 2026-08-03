@@ -36,21 +36,31 @@ ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid, slug text default null) RETURNS text AS $$
 DECLARE
     new_slug text;
+    new_prefix text;
+    new_suffix text;
+    separator text := ':';
+    nanoid_size integer := 6;
 BEGIN
 
-        new_slug = CONCAT(
-            COALESCE(
-                (
-                    SELECT ot.slug
-                    FROM ${ADDB_SCHEMA}.object_type ot
-                    WHERE ot.uuid = object_type_uuid
-                    LIMIT 1
-                ),
-                'document'
-            ),
-            ':',
-            COALESCE(NULLIF(slug, ''), REPLACE(document_uuid::text, '-', ''))
-        );
+    new_prefix = COALESCE(
+        (
+            SELECT ot.slug
+            FROM ${ADDB_SCHEMA}.object_type ot
+            WHERE ot.uuid = object_type_uuid
+            LIMIT 1
+        ),
+        'document'
+    );
+
+    IF slug IS NOT NULL AND slug != '' THEN
+        return CONCAT( new_prefix, separator, slug );
+    END IF;
+
+    new_slug = nanoid(
+        prefix => CONCAT( new_prefix, separator ),
+        size => nanoid_size
+    );
+
     RETURN new_slug;
 END;
 $$ LANGUAGE plpgsql;
