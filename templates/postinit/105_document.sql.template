@@ -38,8 +38,10 @@ DECLARE
     new_slug text;
     new_prefix text;
     new_suffix text;
-    separator text := ':';
+    separator text := '-';
     nanoid_size integer := 6;
+    -- Skipping - and _ characters
+    nanoid_alphabet text := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 BEGIN
 
     new_prefix = COALESCE(
@@ -58,7 +60,8 @@ BEGIN
 
     new_slug = nanoid(
         prefix => CONCAT( new_prefix, separator ),
-        size => nanoid_size
+        size => nanoid_size,
+        alphabet => nanoid_alphabet
     );
 
     RETURN new_slug;
