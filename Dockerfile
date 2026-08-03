@@ -97,7 +97,7 @@ COPY --chown=postgres:postgres templates/postinit/*.template /templates/
 COPY --chown=postgres:postgres templates/initdb.sh.template /docker-entrypoint-initdb.d/98_initdb.sh.template
 
 # TODO: There has to be a better way to do this
-ADD --chown=postgres:postgres https://raw.githubusercontent.com/viascom/nanoid-postgres/c304264a8c6462077a7899a124b47cbf293b34ce/nanoid.sql /docker-entrypoint-initdb.d/99_nanoid.sql
+ADD --chown=postgres:postgres https://raw.githubusercontent.com/viascom/nanoid-postgres/c304264a8c6462077a7899a124b47cbf293b34ce/nanoid.sql /docker-entrypoint-initdb.d/99_nanoid.source
 COPY --chown=postgres:postgres templates/nanoid.sh.template /docker-entrypoint-initdb.d/99_nanoid.sh.template
 
 # Copies the in-order template runner to be ran during init steps
