@@ -33,7 +33,7 @@ ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid, slug text default null) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, slug text default null) RETURNS text AS $$
 DECLARE
     new_slug text;
     new_prefix text;
@@ -69,7 +69,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 UPDATE ${ADDB_SCHEMA}.document d
-SET slug = ${ADDB_SCHEMA}.create_document_slug(d.object_type_uuid, d.uuid)
+SET slug = ${ADDB_SCHEMA}.create_document_slug(d.object_type_uuid)
 WHERE d.slug IS NULL;
 
 ALTER TABLE ${ADDB_SCHEMA}.document
@@ -291,11 +291,11 @@ BEGIN
         END IF;
     END IF;
 
-
-    IF NEW.uuid IS NOT NULL THEN
-        NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.uuid, NEW.slug);
+    -- If incoming slug is not null, then create a new slug based on the
+    -- record's incoming object type
+    IF NEW.slug IS NULL THEN
+        NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid);
     END IF;
-
 
     -- Validate document data against schema.
     -- Draft documents (published = false) validate against a relaxed schema
