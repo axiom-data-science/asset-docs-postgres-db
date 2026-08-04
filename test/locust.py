@@ -290,7 +290,7 @@ class LocustUser(HttpUser):
                     "hi": "there"
                 },
                 "object_type_uuid": dummy_object_type['uuid'],
-                "geom": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
+                "asset_geom": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
             },
             name="post_new_document"
         )
