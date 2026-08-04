@@ -291,7 +291,7 @@ BEGIN
         END IF;
     END IF;
 
-    -- If incoming slug is not null, then create a new slug based on the
+    -- If incoming slug is null, then create a new slug based on the
     -- record's incoming object type
     IF NEW.slug IS NULL THEN
         NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid);
