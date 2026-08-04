@@ -175,3 +175,119 @@ CREATE OR REPLACE TRIGGER trg_${ADDB_SCHEMA}_relationship_update_trigger
 BEFORE INSERT OR UPDATE ON ${ADDB_SCHEMA}.relationship
 FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}.relationship_insert_update_trigger();
+
+
+DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text);
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_related_documents(p_document text)
+RETURNS TABLE (
+    document_uuid  uuid,
+    slug           varchar,
+    label          varchar,
+    relationship   varchar,
+    predicate      varchar,
+    path           text[]
+) AS $$
+DECLARE
+    v_uuid uuid;
+BEGIN
+    -- Resolve slug or UUID string to a UUID
+    SELECT d.uuid INTO v_uuid
+    FROM ${ADDB_SCHEMA}.document d
+    WHERE d.uuid::text = p_document
+       OR d.slug = p_document
+    LIMIT 1;
+
+    IF v_uuid IS NULL THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    WITH RECURSIVE related AS (
+        -- Base: direct relationships from the starting document
+        SELECT
+            r.uuid AS rel_uuid,
+            CASE
+                WHEN r.from_document_uuid = v_uuid THEN r.to_document_uuid
+                ELSE r.from_document_uuid
+            END AS doc_uuid,
+            CASE
+                WHEN r.from_document_uuid = v_uuid THEN p.label
+                ELSE COALESCE(p.inverse_label, p.label)
+            END AS rel_label,
+            CASE
+                WHEN r.from_document_uuid = v_uuid THEN p.predicate
+                ELSE COALESCE(p.inverse_predicate, p.predicate)
+            END AS rel_predicate,
+            ARRAY[
+                (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = v_uuid),
+                CASE
+                    WHEN r.from_document_uuid = v_uuid
+                    THEN (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.to_document_uuid)
+                    ELSE (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.from_document_uuid)
+                END
+            ]::text[] AS traversal_path,
+            -- guard against cycles
+            ARRAY[v_uuid,
+                CASE
+                    WHEN r.from_document_uuid = v_uuid THEN r.to_document_uuid
+                    ELSE r.from_document_uuid
+                END
+            ] AS visited
+        FROM ${ADDB_SCHEMA}.relationship r
+        INNER JOIN ${ADDB_SCHEMA}.predicate p ON p.uuid = r.predicate_uuid
+        WHERE r.from_document_uuid = v_uuid
+           OR r.to_document_uuid   = v_uuid
+
+        UNION ALL
+
+        -- Recursive: follow relationships from each newly discovered document
+        SELECT
+            r.uuid,
+            CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
+                ELSE r.from_document_uuid
+            END,
+            CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN p.label
+                ELSE COALESCE(p.inverse_label, p.label)
+            END,
+            CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN p.predicate
+                ELSE COALESCE(p.inverse_predicate, p.predicate)
+            END,
+            rel.traversal_path || CASE
+                WHEN r.from_document_uuid = rel.doc_uuid
+                THEN (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.to_document_uuid)
+                ELSE (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.from_document_uuid)
+            END,
+            rel.visited || CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
+                ELSE r.from_document_uuid
+            END
+        FROM ${ADDB_SCHEMA}.relationship r
+        INNER JOIN ${ADDB_SCHEMA}.predicate p ON p.uuid = r.predicate_uuid
+        INNER JOIN related rel ON
+            r.from_document_uuid = rel.doc_uuid OR
+            r.to_document_uuid   = rel.doc_uuid
+        WHERE NOT (
+            CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
+                ELSE r.from_document_uuid
+            END = ANY(rel.visited)
+        )
+    )
+    SELECT DISTINCT ON (rel.doc_uuid)
+        d.uuid,
+        d.slug,
+        d.label,
+        rel.rel_label,
+        rel.rel_predicate,
+        rel.traversal_path
+    FROM related rel
+    INNER JOIN ${ADDB_SCHEMA}.document d ON d.uuid = rel.doc_uuid
+    ORDER BY rel.doc_uuid, array_length(rel.traversal_path, 1);
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text) TO ${ADDB_RW_USER};    
+
