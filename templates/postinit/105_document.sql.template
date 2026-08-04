@@ -291,10 +291,22 @@ BEGIN
         END IF;
     END IF;
 
-    -- If incoming slug is null, then create a new slug based on the
-    -- record's incoming object type
-    IF NEW.slug IS NULL THEN
-        NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid);
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.slug IS NULL THEN
+            -- Choose a new slug with the default nanoid suffix and object type
+            -- prefix
+            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid);
+        ELSE
+            -- Choose a new slug with the inserted slug as suffix and prepended
+            -- object type as prefix
+            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.slug );
+        END IF;
+    END IF;
+
+    IF NEW.slug IS NOT NULL THEN
+        IF NEW.slug !~ '^[-_a-zA-Z0-9]+$' THEN
+            RAISE EXCEPTION 'Slug must be alphanumeric (a-z, A-Z, 0-9) or dash (-) or underscore (_)';
+        END IF;
     END IF;
 
     -- Validate document data against schema.
