@@ -48,7 +48,7 @@ RUN cargo pgrx init --pg17 $(which pg_config)
 
 USER root
 
-ADD https://github.com/supabase/pg_jsonschema.git /home/supa/pg_jsonschema
+ADD https://github.com/supabase/pg_jsonschema.git#a5a6306e3a039b0f980489362ebaea35103830c6 /home/supa/pg_jsonschema
 
 WORKDIR /home/supa/pg_jsonschema
 RUN cargo pgrx install && cargo clean
@@ -64,7 +64,7 @@ RUN gmake && gmake install
 
 # Add extension that allows for being able to determine mimetype/file type
 # based on magic strings
-ADD https://github.com/nmandery/pg_byteamagic.git /home/nmandery/pg_byteamagic
+ADD https://github.com/nmandery/pg_byteamagic.git#48cd8511889faf86fa9f247e7ba67a55b21ea3c9 /home/nmandery/pg_byteamagic
 WORKDIR /home/nmandery/pg_byteamagic
 RUN make && make install
 
@@ -94,7 +94,11 @@ RUN mkdir /templates \
     && chmod g=rwx /templates/
 
 COPY --chown=postgres:postgres templates/postinit/*.template /templates/
-COPY --chown=postgres:postgres templates/initdb.sh.template /docker-entrypoint-initdb.d/99_initdb.sh.template
+COPY --chown=postgres:postgres templates/initdb.sh.template /docker-entrypoint-initdb.d/98_initdb.sh.template
+
+# TODO: There has to be a better way to do this
+ADD --chown=postgres:postgres https://raw.githubusercontent.com/viascom/nanoid-postgres/c304264a8c6462077a7899a124b47cbf293b34ce/nanoid.sql /docker-entrypoint-initdb.d/99_nanoid.source
+COPY --chown=postgres:postgres templates/nanoid.sh.template /docker-entrypoint-initdb.d/99_nanoid.sh.template
 
 # Copies the in-order template runner to be ran during init steps
 COPY ./docker/run_templates.sh /usr/local/bin/run_templates.sh

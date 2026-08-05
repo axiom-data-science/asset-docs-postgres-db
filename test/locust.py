@@ -6,6 +6,7 @@ import urllib
 import pathlib
 import json
 import logging
+import uuid
 
 this_dir = pathlib.Path( __file__ ).parent
 
@@ -290,7 +291,7 @@ class LocustUser(HttpUser):
                     "hi": "there"
                 },
                 "object_type_uuid": dummy_object_type['uuid'],
-                "geom": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
+                "asset_geom": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))"
             },
             name="post_new_document"
         )
@@ -456,7 +457,8 @@ class LocustUser(HttpUser):
                     "hi": "there"
                 },
                 "object_type_uuid": dummy_object_type['uuid'],
-                "published": True
+                "published": True,
+                "slug": uuid.uuid4().hex
             },
             name="post_second_related_document"
         )

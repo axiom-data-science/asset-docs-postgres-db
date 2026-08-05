@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.object_type (
 ALTER TABLE ${ADDB_SCHEMA}.object_type
 ADD COLUMN IF NOT EXISTS "data" jsonb NULL;
 
+ALTER TABLE ${ADDB_SCHEMA}.object_type
+DROP CONSTRAINT IF EXISTS asset_object_type_check_slug;
+
+ALTER TABLE ${ADDB_SCHEMA}.object_type
+ADD CONSTRAINT asset_object_type_check_slug
+CHECK (
+  --Ensure lower snake-case for object type slug
+  slug ~ '^[_a-z0-9]+$'
+);
+
 CREATE OR REPLACE VIEW ${ADDB_SCHEMA}.enum_values AS
 SELECT
     t.typname AS enum_name,
@@ -150,7 +160,7 @@ SELECT $json$
                 "predicate": { "type": "string" },
                 "has_predicate": { "type": "string" }
             }
-        } 
+        }
     }
   }
 }

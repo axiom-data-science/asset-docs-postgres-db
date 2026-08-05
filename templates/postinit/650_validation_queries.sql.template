@@ -24,30 +24,30 @@ BEGIN
         FROM (
             VALUES
                 -- owner checks
-                ('seed-owner-only'::text, 'seed-alice-sub'::text, ARRAY[]::text[], true),
-                ('seed-owner-only'::text, 'seed-bob-sub'::text, ARRAY[]::text[], false),
+                ('20000000-0000-0000-0000-000000000001'::uuid, 'seed-alice-sub'::text, ARRAY[]::text[], true),
+                ('20000000-0000-0000-0000-000000000001'::uuid, 'seed-bob-sub'::text, ARRAY[]::text[], false),
 
                 -- subs_for_update checks
-                ('seed-sub-grant'::text, 'seed-alice-sub'::text, ARRAY[]::text[], true),
-                ('seed-sub-grant'::text, 'seed-carol-sub'::text, ARRAY[]::text[], false),
+                ('20000000-0000-0000-0000-000000000002'::uuid, 'seed-alice-sub'::text, ARRAY[]::text[], true),
+                ('20000000-0000-0000-0000-000000000002'::uuid, 'seed-carol-sub'::text, ARRAY[]::text[], false),
 
                 -- roles_for_update checks
-                ('seed-role-grant'::text, 'seed-eve-sub'::text, ARRAY['editor']::text[], true),
-                ('seed-role-grant'::text, 'seed-eve-sub'::text, ARRAY['viewer']::text[], false),
+                ('20000000-0000-0000-0000-000000000003'::uuid, 'seed-eve-sub'::text, ARRAY['editor']::text[], true),
+                ('20000000-0000-0000-0000-000000000003'::uuid, 'seed-eve-sub'::text, ARRAY['viewer']::text[], false),
 
                 -- lock behavior checks
-                ('seed-locked-by-owner'::text, 'seed-eve-sub'::text, ARRAY['editor']::text[], false),
-                ('seed-locked-by-owner'::text, 'seed-dave-sub'::text, ARRAY['editor']::text[], true),
-                ('seed-locked-by-qa'::text, 'seed-qa-user-sub'::text, ARRAY['qa']::text[], true),
-                ('seed-locked-by-qa'::text, 'seed-qa-peer-sub'::text, ARRAY['qa']::text[], false),
+                ('20000000-0000-0000-0000-000000000004'::uuid, 'seed-eve-sub'::text, ARRAY['editor']::text[], false),
+                ('20000000-0000-0000-0000-000000000004'::uuid, 'seed-dave-sub'::text, ARRAY['editor']::text[], true),
+                ('20000000-0000-0000-0000-000000000005'::uuid, 'seed-qa-user-sub'::text, ARRAY['qa']::text[], true),
+                ('20000000-0000-0000-0000-000000000005'::uuid, 'seed-qa-peer-sub'::text, ARRAY['qa']::text[], false),
 
                 -- superadmin override checks
-                ('seed-locked-by-owner'::text, 'seed-admin-sub'::text, ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[], true)
-        ) AS t(slug, subject_sub, subject_roles, expected)
+                ('20000000-0000-0000-0000-000000000004'::uuid, 'seed-admin-sub'::text, ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[], true)
+        ) AS t(document_uuid, subject_sub, subject_roles, expected)
     ),
     evaluated AS (
         SELECT
-            c.slug,
+            c.document_uuid,
             c.subject_sub,
             c.subject_roles,
             c.expected,
@@ -64,20 +64,20 @@ BEGIN
         INNER JOIN
             ${ADDB_SCHEMA}.document d
         ON
-            d.slug = c.slug
+            d.uuid = c.document_uuid
     )
     SELECT
         COALESCE(
             jsonb_agg(
                 jsonb_build_object(
-                    'slug', slug,
+                    'document_uuid', document_uuid,
                     'subject_sub', subject_sub,
                     'subject_roles', subject_roles,
                     'expected', expected,
                     'actual', actual,
                     'passed', actual IS NOT DISTINCT FROM expected
                 )
-                ORDER BY slug, subject_sub
+                ORDER BY document_uuid, subject_sub
             ),
             '[]'::jsonb
         ),
@@ -89,18 +89,18 @@ BEGIN
         SELECT *
         FROM (
             VALUES
-                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-owner-only'::text, true),
-                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-sub-grant'::text, true),
-                ('{"sub":"seed-alice-sub","roles":[]}'::text, 'seed-role-grant'::text, false),
-                ('{"sub":"seed-qa-user-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, true),
-                ('{"sub":"seed-qa-peer-sub","roles":["qa"]}'::text, 'seed-locked-by-qa'::text, false),
-                ('{"sub":"seed-admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, 'seed-locked-by-owner'::text, true)
-        ) AS t(claims_json, slug, expected)
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, '20000000-0000-0000-0000-000000000001'::uuid, true),
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, '20000000-0000-0000-0000-000000000002'::uuid, true),
+                ('{"sub":"seed-alice-sub","roles":[]}'::text, '20000000-0000-0000-0000-000000000003'::uuid, false),
+                ('{"sub":"seed-qa-user-sub","roles":["qa"]}'::text, '20000000-0000-0000-0000-000000000005'::uuid, true),
+                ('{"sub":"seed-qa-peer-sub","roles":["qa"]}'::text, '20000000-0000-0000-0000-000000000005'::uuid, false),
+                ('{"sub":"seed-admin-sub","roles":["${ADDB_SUPERADMIN_ENTITLEMENT}"]}'::text, '20000000-0000-0000-0000-000000000004'::uuid, true)
+        ) AS t(claims_json, document_uuid, expected)
     ),
     evaluated AS (
         SELECT
             c.claims_json,
-            c.slug,
+            c.document_uuid,
             c.expected,
             ${ADDB_SCHEMA}.can_modify_document_for_subject(
                 d.owner_sub,
@@ -115,19 +115,19 @@ BEGIN
         INNER JOIN
             ${ADDB_SCHEMA}.document d
         ON
-            d.slug = c.slug
+            d.uuid = c.document_uuid
     )
     SELECT
         COALESCE(
             jsonb_agg(
                 jsonb_build_object(
-                    'slug', slug,
+                    'document_uuid', document_uuid,
                     'claims', claims_json,
                     'expected', expected,
                     'actual', actual,
                     'passed', actual IS NOT DISTINCT FROM expected
                 )
-                ORDER BY slug, claims_json
+                ORDER BY document_uuid, claims_json
             ),
             '[]'::jsonb
         ),
@@ -142,12 +142,12 @@ BEGIN
             'actual', (
                 SELECT count(*)
                 FROM ${ADDB_SCHEMA}.document d
-                WHERE d.slug IN (
-                    'seed-owner-only',
-                    'seed-sub-grant',
-                    'seed-role-grant',
-                    'seed-locked-by-owner',
-                    'seed-locked-by-qa'
+                WHERE d.uuid IN (
+                    '20000000-0000-0000-0000-000000000001'::uuid,
+                    '20000000-0000-0000-0000-000000000002'::uuid,
+                    '20000000-0000-0000-0000-000000000003'::uuid,
+                    '20000000-0000-0000-0000-000000000004'::uuid,
+                    '20000000-0000-0000-0000-000000000005'::uuid
                 )
                 AND ${ADDB_SCHEMA}.can_modify_document_for_subject(
                     d.owner_sub,
@@ -169,12 +169,12 @@ BEGIN
                     'seed-alice-sub',
                     ARRAY[]::text[]
                 )
-                AND d.slug IN (
-                    'seed-owner-only',
-                    'seed-sub-grant',
-                    'seed-role-grant',
-                    'seed-locked-by-owner',
-                    'seed-locked-by-qa'
+                AND d.uuid IN (
+                    '20000000-0000-0000-0000-000000000001'::uuid,
+                    '20000000-0000-0000-0000-000000000002'::uuid,
+                    '20000000-0000-0000-0000-000000000003'::uuid,
+                    '20000000-0000-0000-0000-000000000004'::uuid,
+                    '20000000-0000-0000-0000-000000000005'::uuid
                 )
             ) = 2
         ),
@@ -184,12 +184,12 @@ BEGIN
             'actual', (
                 SELECT count(*)
                 FROM ${ADDB_SCHEMA}.document d
-                WHERE d.slug IN (
-                    'seed-owner-only',
-                    'seed-sub-grant',
-                    'seed-role-grant',
-                    'seed-locked-by-owner',
-                    'seed-locked-by-qa'
+                WHERE d.uuid IN (
+                    '20000000-0000-0000-0000-000000000001'::uuid,
+                    '20000000-0000-0000-0000-000000000002'::uuid,
+                    '20000000-0000-0000-0000-000000000003'::uuid,
+                    '20000000-0000-0000-0000-000000000004'::uuid,
+                    '20000000-0000-0000-0000-000000000005'::uuid
                 )
                 AND ${ADDB_SCHEMA}.can_modify_document_for_subject(
                     d.owner_sub,
@@ -211,12 +211,12 @@ BEGIN
                     'seed-admin-sub',
                     ARRAY['${ADDB_SUPERADMIN_ENTITLEMENT}']::text[]
                 )
-                AND d.slug IN (
-                    'seed-owner-only',
-                    'seed-sub-grant',
-                    'seed-role-grant',
-                    'seed-locked-by-owner',
-                    'seed-locked-by-qa'
+                AND d.uuid IN (
+                    '20000000-0000-0000-0000-000000000001'::uuid,
+                    '20000000-0000-0000-0000-000000000002'::uuid,
+                    '20000000-0000-0000-0000-000000000003'::uuid,
+                    '20000000-0000-0000-0000-000000000004'::uuid,
+                    '20000000-0000-0000-0000-000000000005'::uuid
                 )
             ) = 5
         )

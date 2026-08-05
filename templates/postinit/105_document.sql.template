@@ -33,30 +33,43 @@ ALTER TABLE ${ADDB_SCHEMA}.document
 ADD COLUMN IF NOT EXISTS slug varchar(256) NULL;
 
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, document_uuid uuid) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.create_document_slug(object_type_uuid uuid, slug text default null) RETURNS text AS $$
 DECLARE
     new_slug text;
+    new_prefix text;
+    new_suffix text;
+    separator text := '-';
+    nanoid_size integer := 6;
+    -- Skipping - and _ characters
+    nanoid_alphabet text := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 BEGIN
 
-        new_slug = CONCAT(
-            COALESCE(
-                (
-                    SELECT ot.slug
-                    FROM ${ADDB_SCHEMA}.object_type ot
-                    WHERE ot.uuid = object_type_uuid
-                    LIMIT 1
-                ),
-                'document'
-            ),
-            ':',
-            REPLACE(document_uuid::text, '-', '')
-        );
+    new_prefix = COALESCE(
+        (
+            SELECT ot.slug
+            FROM ${ADDB_SCHEMA}.object_type ot
+            WHERE ot.uuid = object_type_uuid
+            LIMIT 1
+        ),
+        'document'
+    );
+
+    IF slug IS NOT NULL AND slug != '' THEN
+        return CONCAT( new_prefix, separator, slug );
+    END IF;
+
+    new_slug = nanoid(
+        prefix => CONCAT( new_prefix, separator ),
+        size => nanoid_size,
+        alphabet => nanoid_alphabet
+    );
+
     RETURN new_slug;
 END;
 $$ LANGUAGE plpgsql;
 
 UPDATE ${ADDB_SCHEMA}.document d
-SET slug = ${ADDB_SCHEMA}.create_document_slug(d.object_type_uuid, d.uuid)
+SET slug = ${ADDB_SCHEMA}.create_document_slug(d.object_type_uuid)
 WHERE d.slug IS NULL;
 
 ALTER TABLE ${ADDB_SCHEMA}.document
@@ -278,9 +291,21 @@ BEGIN
         END IF;
     END IF;
 
-    IF NEW.slug IS NULL THEN
-        IF NEW.uuid IS NOT NULL THEN
-            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.uuid);
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.slug IS NULL THEN
+            -- Choose a new slug with the default nanoid suffix and object type
+            -- prefix
+            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid);
+        ELSE
+            -- Choose a new slug with the inserted slug as suffix and prepended
+            -- object type as prefix
+            NEW.slug = ${ADDB_SCHEMA}.create_document_slug(NEW.object_type_uuid, NEW.slug );
+        END IF;
+    END IF;
+
+    IF NEW.slug IS NOT NULL THEN
+        IF NEW.slug !~ '^[-_a-zA-Z0-9]+$' THEN
+            RAISE EXCEPTION 'Slug must be alphanumeric (a-z, A-Z, 0-9) or dash (-) or underscore (_)';
         END IF;
     END IF;
 

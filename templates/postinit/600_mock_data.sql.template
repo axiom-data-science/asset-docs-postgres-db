@@ -14,7 +14,7 @@ VALUES
         '10000000-0000-0000-0000-000000000001'::uuid,
         'seed-superadmin',
         'Seed Document Type',
-        'seed-document-type',
+        'seed_document_type',
         'document'::${ADDB_SCHEMA}.object_category,
         'Mock object_type row used by permission test documents'
     )
@@ -39,7 +39,7 @@ VALUES
     (
         '30000000-0000-0000-0000-000000000001'::uuid,
         'seed-superadmin',
-        'seed-document-schema',
+        'seed_document_schema',
         'Seed Document Schema',
         'Default schema for seeded document object type',
         true,

@@ -36,6 +36,16 @@ CHECK (
   jsonschema_is_valid((json_schema)::json)
 );
 
+ALTER TABLE ${ADDB_SCHEMA}.object_schema
+DROP CONSTRAINT IF EXISTS asset_object_schema_check_slug;
+
+ALTER TABLE ${ADDB_SCHEMA}.object_schema
+ADD CONSTRAINT asset_object_schema_check_slug
+CHECK (
+  --Ensure lower snake-case for object schema slug
+  slug ~ '^[_a-z0-9]+$'
+);
+
 ALTER TABLE ${ADDB_SCHEMA}.object_schema ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS object_schema_policy_select ON ${ADDB_SCHEMA}.object_schema;
