@@ -367,9 +367,9 @@ VALUES
         '10000000-0000-0000-0000-000000000101'::uuid,
         'seed-superadmin',
         'Seed Parent Type',
-        'seed-parent-type',
+        'seed_parent_type',
         'document'::${ADDB_SCHEMA}.object_category,
-        'Mock parent object type that expects child documents of seed-child-type',
+        'Mock parent object type that expects child documents of seed_child_type',
         '{
             "expected_child_types": [
                 {
@@ -388,7 +388,7 @@ VALUES
         '10000000-0000-0000-0000-000000000102'::uuid,
         'seed-superadmin',
         'Seed Child Type',
-        'seed-child-type',
+        'seed_child_type',
         'document'::${ADDB_SCHEMA}.object_category,
         'Mock child object type used to model parent/child document links',
         '{
@@ -409,7 +409,7 @@ VALUES
         '10000000-0000-0000-0000-000000000103'::uuid,
         'seed-superadmin',
         'Seed Grandchild Type',
-        'seed-grandchild-type',
+        'seed_grandchild_type',
         'document'::${ADDB_SCHEMA}.object_category,
         'Mock grandchild object type for two-level parent/child hierarchy tests',
         '{"expected_child_types": []}'::jsonb
@@ -436,7 +436,7 @@ VALUES
     (
         '30000000-0000-0000-0000-000000000101'::uuid,
         'seed-superadmin',
-        'seed-parent-schema',
+        'seed_parent_schema',
         'Seed Parent Schema',
         'Default schema for Seed Parent Type',
         true,
@@ -446,7 +446,7 @@ VALUES
     (
         '30000000-0000-0000-0000-000000000102'::uuid,
         'seed-superadmin',
-        'seed-child-schema',
+        'seed_child_schema',
         'Seed Child Schema',
         'Default schema for Seed Child Type',
         true,
@@ -456,7 +456,7 @@ VALUES
     (
         '30000000-0000-0000-0000-000000000103'::uuid,
         'seed-superadmin',
-        'seed-grandchild-schema',
+        'seed_grandchild_schema',
         'Seed Grandchild Schema',
         'Default schema for Seed Grandchild Type',
         true,
