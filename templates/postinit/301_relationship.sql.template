@@ -178,14 +178,17 @@ EXECUTE FUNCTION ${ADDB_SCHEMA}.relationship_insert_update_trigger();
 
 
 DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text);
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_related_documents(p_document text)
+DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text, boolean);
+DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text, boolean, text);
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_related_documents(
+    document_ref text,
+    direct_only boolean DEFAULT false
+)
 RETURNS TABLE (
-    document_uuid  uuid,
-    slug           varchar,
-    label          varchar,
-    relationship   varchar,
-    predicate      varchar,
-    path           text[]
+    document      jsonb,
+    object_type   jsonb,
+    relationship  jsonb,
+    path          jsonb
 ) AS $$
 DECLARE
     v_uuid uuid;
@@ -193,8 +196,8 @@ BEGIN
     -- Resolve slug or UUID string to a UUID
     SELECT d.uuid INTO v_uuid
     FROM ${ADDB_SCHEMA}.document d
-    WHERE d.uuid::text = p_document
-       OR d.slug = p_document
+     WHERE d.uuid::text = document_ref
+         OR d.slug = document_ref
     LIMIT 1;
 
     IF v_uuid IS NULL THEN
@@ -218,14 +221,17 @@ BEGIN
                 WHEN r.from_document_uuid = v_uuid THEN p.predicate
                 ELSE COALESCE(p.inverse_predicate, p.predicate)
             END AS rel_predicate,
+            CASE
+                WHEN r.from_document_uuid = v_uuid THEN FALSE
+                ELSE TRUE
+            END AS rel_is_inverse,
             ARRAY[
-                (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = v_uuid),
+                v_uuid,
                 CASE
-                    WHEN r.from_document_uuid = v_uuid
-                    THEN (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.to_document_uuid)
-                    ELSE (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.from_document_uuid)
+                    WHEN r.from_document_uuid = v_uuid THEN r.to_document_uuid
+                    ELSE r.from_document_uuid
                 END
-            ]::text[] AS traversal_path,
+            ] AS traversal_path_uuids,
             -- guard against cycles
             ARRAY[v_uuid,
                 CASE
@@ -235,8 +241,8 @@ BEGIN
             ] AS visited
         FROM ${ADDB_SCHEMA}.relationship r
         INNER JOIN ${ADDB_SCHEMA}.predicate p ON p.uuid = r.predicate_uuid
-        WHERE r.from_document_uuid = v_uuid
-           OR r.to_document_uuid   = v_uuid
+        WHERE (r.from_document_uuid = v_uuid
+           OR r.to_document_uuid   = v_uuid)
 
         UNION ALL
 
@@ -255,10 +261,13 @@ BEGIN
                 WHEN r.from_document_uuid = rel.doc_uuid THEN p.predicate
                 ELSE COALESCE(p.inverse_predicate, p.predicate)
             END,
-            rel.traversal_path || CASE
-                WHEN r.from_document_uuid = rel.doc_uuid
-                THEN (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.to_document_uuid)
-                ELSE (SELECT d0.slug FROM ${ADDB_SCHEMA}.document d0 WHERE d0.uuid = r.from_document_uuid)
+            CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN FALSE
+                ELSE TRUE
+            END,
+            rel.traversal_path_uuids || CASE
+                WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
+                ELSE r.from_document_uuid
             END,
             rel.visited || CASE
                 WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
@@ -269,7 +278,8 @@ BEGIN
         INNER JOIN related rel ON
             r.from_document_uuid = rel.doc_uuid OR
             r.to_document_uuid   = rel.doc_uuid
-        WHERE NOT (
+        WHERE direct_only IS FALSE
+          AND NOT (
             CASE
                 WHEN r.from_document_uuid = rel.doc_uuid THEN r.to_document_uuid
                 ELSE r.from_document_uuid
@@ -277,17 +287,104 @@ BEGIN
         )
     )
     SELECT DISTINCT ON (rel.doc_uuid)
-        d.uuid,
-        d.slug,
-        d.label,
-        rel.rel_label,
-        rel.rel_predicate,
-        rel.traversal_path
+        jsonb_build_object(
+            'uuid', d.uuid,
+            'slug', d.slug,
+            'label', d.label
+        ) AS document,
+        jsonb_build_object(
+            'uuid', ot.uuid,
+            'slug', ot.slug,
+            'label', ot.label,
+            'category', ot.category
+        ) AS object_type,
+        jsonb_build_object(
+            'uuid', r.uuid,
+            'from_document_uuid', r.from_document_uuid,
+            'to_document_uuid', r.to_document_uuid,
+            'predicate_uuid', r.predicate_uuid,
+            'data', r.data,
+            'label', rel.rel_label,
+            'is_inverse', rel.rel_is_inverse,
+            'predicate', jsonb_build_object(
+                'label', p.label,
+                'inverse_label', p.inverse_label,
+                'predicate', p.predicate,
+                'inverse_predicate', p.inverse_predicate,
+                'is_directional', p.is_directional
+            )
+        ) AS relationship,
+        (
+            WITH path_nodes AS (
+                SELECT
+                    pu.path_uuid,
+                    pu.ord,
+                    lag(pu.path_uuid) OVER (ORDER BY pu.ord) AS prev_path_uuid
+                FROM unnest(rel.traversal_path_uuids) WITH ORDINALITY AS pu(path_uuid, ord)
+            )
+            SELECT jsonb_agg(
+                jsonb_build_object(
+                    'uuid', pd.uuid,
+                    'slug', pd.slug,
+                    'label', pd.label,
+                    'object_type', jsonb_build_object(
+                        'uuid', pot.uuid,
+                        'slug', pot.slug,
+                        'label', pot.label,
+                        'category', pot.category
+                    ),
+                    'relationship',
+                    CASE
+                        WHEN pn.prev_path_uuid IS NULL THEN NULL
+                        ELSE (
+                            SELECT jsonb_build_object(
+                                'uuid', pr.uuid,
+                                'from_document_uuid', pr.from_document_uuid,
+                                'to_document_uuid', pr.to_document_uuid,
+                                'predicate_uuid', pr.predicate_uuid,
+                                'data', pr.data,
+                                'label', CASE
+                                    WHEN pr.from_document_uuid = pn.prev_path_uuid THEN pp.label
+                                    ELSE COALESCE(pp.inverse_label, pp.label)
+                                END,
+                                'is_inverse', CASE
+                                    WHEN pr.from_document_uuid = pn.prev_path_uuid THEN FALSE
+                                    ELSE TRUE
+                                END,
+                                'predicate', jsonb_build_object(
+                                    'label', pp.label,
+                                    'inverse_label', pp.inverse_label,
+                                    'predicate', pp.predicate,
+                                    'inverse_predicate', pp.inverse_predicate,
+                                    'is_directional', pp.is_directional
+                                )
+                            )
+                            FROM ${ADDB_SCHEMA}.relationship pr
+                            INNER JOIN ${ADDB_SCHEMA}.predicate pp ON pp.uuid = pr.predicate_uuid
+                            WHERE
+                                (pr.from_document_uuid = pn.prev_path_uuid AND pr.to_document_uuid = pn.path_uuid)
+                                OR
+                                (pr.to_document_uuid = pn.prev_path_uuid AND pr.from_document_uuid = pn.path_uuid)
+                            ORDER BY pr.uuid
+                            LIMIT 1
+                        )
+                    END
+                )
+                ORDER BY pn.ord
+            )
+            FROM path_nodes pn
+            INNER JOIN ${ADDB_SCHEMA}.document pd ON pd.uuid = pn.path_uuid
+            INNER JOIN ${ADDB_SCHEMA}.object_type pot ON pot.uuid = pd.object_type_uuid
+        ) AS path
     FROM related rel
     INNER JOIN ${ADDB_SCHEMA}.document d ON d.uuid = rel.doc_uuid
-    ORDER BY rel.doc_uuid, array_length(rel.traversal_path, 1);
+    INNER JOIN ${ADDB_SCHEMA}.object_type ot ON ot.uuid = d.object_type_uuid
+    INNER JOIN ${ADDB_SCHEMA}.relationship r ON r.uuid = rel.rel_uuid
+    INNER JOIN ${ADDB_SCHEMA}.predicate p ON p.uuid = r.predicate_uuid
+    WHERE direct_only IS FALSE OR array_length(rel.traversal_path_uuids, 1) = 2
+    ORDER BY rel.doc_uuid, array_length(rel.traversal_path_uuids, 1);
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY INVOKER;
-GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text) TO ${ADDB_READ_USER};
-GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text) TO ${ADDB_RW_USER};    
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text, boolean) TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text, boolean) TO ${ADDB_RW_USER};
 
