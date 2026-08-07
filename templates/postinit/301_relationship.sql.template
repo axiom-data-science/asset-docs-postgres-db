@@ -177,9 +177,7 @@ FOR EACH ROW
 EXECUTE FUNCTION ${ADDB_SCHEMA}.relationship_insert_update_trigger();
 
 
-DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text);
 DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text, boolean);
-DROP FUNCTION IF EXISTS ${ADDB_SCHEMA}.get_related_documents(text, boolean, text);
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.get_related_documents(
     document_ref text,
     direct_only boolean DEFAULT false
@@ -387,4 +385,3 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY INVOKER;
 GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text, boolean) TO ${ADDB_READ_USER};
 GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}.get_related_documents(text, boolean) TO ${ADDB_RW_USER};
-
