@@ -158,7 +158,7 @@ SELECT $json$
                 "description": { "type": "string" },
                 "presidence": { "type": "number" },
                 "predicate": { "type": "string" },
-                "has_predicate": { "type": "string" }
+                "to_parent_predicate": { "type": "string" }
             }
         }
     }
