@@ -374,7 +374,7 @@ VALUES
             "expected_child_types": [
                 {
                     "single": false,
-                    "object_type_slug": "seed-child-type",
+                    "object_type_slug": "seed_child_type",
                     "label": "Seed Child",
                     "description": "Child document attached to Seed Parent",
                     "predicate": "has_parent",
@@ -395,7 +395,7 @@ VALUES
             "expected_child_types": [
                 {
                     "single": false,
-                    "object_type_slug": "seed-grandchild-type",
+                    "object_type_slug": "seed_grandchild_type",
                     "label": "Seed Grandchild",
                     "description": "Second-level child attached to Seed Child",
                     "predicate": "has_parent",
