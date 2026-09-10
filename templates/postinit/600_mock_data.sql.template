@@ -378,8 +378,8 @@ VALUES
                     "label": "Seed Child",
                     "description": "Child document attached to Seed Parent",
                     "predicate": "has_parent",
-                    "has_predicate": "has_child",
-                    "presidence": 1
+                    "to_parent_predicate": "has_child",
+                    "precedence": 1
                 }
             ]
         }'::jsonb
@@ -399,8 +399,8 @@ VALUES
                     "label": "Seed Grandchild",
                     "description": "Second-level child attached to Seed Child",
                     "predicate": "has_parent",
-                    "has_predicate": "has_child",
-                    "presidence": 1
+                    "to_parent_predicate": "has_child",
+                    "precedence": 1
                 }
             ]
         }'::jsonb
