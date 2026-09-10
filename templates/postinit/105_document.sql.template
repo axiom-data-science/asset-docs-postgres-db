@@ -209,16 +209,14 @@ WITH CHECK (
 DROP POLICY IF EXISTS document_policy_delete ON ${ADDB_SCHEMA}.document;
 CREATE POLICY document_policy_delete ON ${ADDB_SCHEMA}.document
 FOR DELETE
---  documents DELETEable if no JWT claims, or if claim's sub matches owner
+--  documents DELETEable with the same rules as modify access, including
+--  superadmin bypass and lock ownership checks.
 USING (
-    (
-    current_setting('request.jwt.claims', true) IS NOT NULL AND
-    owner_sub IS NOT NULL AND
-    owner_sub = current_setting('request.jwt.claims', true)::json->>'sub' AND
-    (
-        lock_sub IS NULL
-        -- record should not be deletable if it is still locked.
-    )
+    ${ADDB_SCHEMA}.can_modify_document(
+        owner_sub,
+        subs_for_update,
+        roles_for_update,
+        lock_sub
     )
 );
 
