@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS ${ADDB_SCHEMA}.relationship (
     "uuid" uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
     "from_document_uuid" uuid REFERENCES ${ADDB_SCHEMA}.document(uuid) ON DELETE CASCADE NOT NULL,
     "to_document_uuid" uuid REFERENCES ${ADDB_SCHEMA}.document(uuid) ON DELETE CASCADE NOT NULL,
-    "predicate_uuid" uuid REFERENCES ${ADDB_SCHEMA}.predicate(uuid) NOT NULL,
+    "predicate_uuid" uuid REFERENCES ${ADDB_SCHEMA}.predicate(uuid) ON DELETE CASCADE NOT NULL,
     "data" jsonb,
     UNIQUE("from_document_uuid", "to_document_uuid", "predicate_uuid")
 );
@@ -20,6 +20,13 @@ ALTER TABLE ${ADDB_SCHEMA}.relationship
     ADD CONSTRAINT relationship_to_document_uuid_fkey
         FOREIGN KEY ("to_document_uuid")
         REFERENCES ${ADDB_SCHEMA}.document(uuid)
+        ON DELETE CASCADE;
+
+ALTER TABLE ${ADDB_SCHEMA}.relationship
+    DROP CONSTRAINT IF EXISTS relationship_predicate_uuid_fkey,
+    ADD CONSTRAINT relationship_predicate_uuid_fkey
+        FOREIGN KEY ("predicate_uuid")
+        REFERENCES ${ADDB_SCHEMA}.predicate(uuid)
         ON DELETE CASCADE;
 
 ALTER TABLE ${ADDB_SCHEMA}.relationship ENABLE ROW LEVEL SECURITY;
