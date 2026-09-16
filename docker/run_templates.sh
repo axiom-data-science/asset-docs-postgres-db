@@ -35,10 +35,29 @@ if [ "$TEMPLATES_RET" -ne '0' ]; then
     exit 4;
 fi
 
-if ! pg_isready --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout 5; then
-    echo "Postgres not ready in time." 1>&2;
+# Based on: https://reemus.dev/tldr/postgres-wait-for-ready-bash-script
+TIMEOUT=5
+RETRY_COUNT=0
+RETRY_MAX=5
+RETRY_INTERVAL=1
+# Assume failure, exit code 1
+SUCCESSFUL=1
+while true;  do
+  pg_isready --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout "$TIMEOUT";
+  SUCCESSFUL="$?";
+
+  if [ "$SUCCESSFUL" -eq "0" ]; then
+    break;
+  fi
+
+  RETRY_COUNT=$(($RETRY_COUNT + 1))
+  if [ "$RETRY_COUNT" -ge "$RETRY_MAX" ]; then
+    echo "Postgres not ready in time ($RETRY_COUNT attempts with $TIMEOUT second timeouts)." 1>&2;
     exit 5;
-fi
+  fi
+  echo "Waiting for PostgreSQL to be ready... Attempt: ${RETRY_COUNT}";
+  sleep "${RETRY_INTERVAL}";
+done
 
 while read -r line; do
 
