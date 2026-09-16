@@ -156,7 +156,7 @@ SELECT $json$
                 "object_type_slug": { "type": "string" },
                 "label": { "type": "string" },
                 "description": { "type": "string" },
-                "presidence": { "type": "number" },
+                "precedence": { "type": "number" },
                 "predicate": { "type": "string" },
                 "to_parent_predicate": { "type": "string" }
             }

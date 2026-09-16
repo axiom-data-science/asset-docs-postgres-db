@@ -14,7 +14,7 @@ BEGIN
           "object_type_query": "slug=ilike.%modl_collection_%",
           "label": "Asset collector metadata",
           "description": "Select the collection type that corresponds with your data source",
-          "has_predicate": "has_parent"
+          "to_parent_predicate": "has_parent"
         }
       ],
       "field_mappings": {
