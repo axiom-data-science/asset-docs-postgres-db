@@ -36,11 +36,11 @@ services:
     # By default, don't create a persistent volume (for development). Instead,
     # init the postgres database every time
     tmpfs:
-      - "/var/lib/postgresql/data"
+      - "/var/lib/postgresql"
     volumes:
       # But if you need the database to persist, between restarts, you can mount
       # the dbdata volume instead of the tmpfs
-      # - "dbdata:/var/lib/postgresql/data:rw"
+      # - "dbdata:/var/lib/postgresql:rw"
       - "./templates/initdb.sh.template:/docker-entrypoint-initdb.d/99_initdb.sh.template"
 
 

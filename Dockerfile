@@ -1,15 +1,15 @@
-FROM postgis/postgis:17-3.5
+FROM postgis/postgis:18-3.6
 
 # Based on:
 # * http://git.axiom/axiom/webcoos-postgres-db
 # * https://github.com/supabase/pg_jsonschema/blob/master/dockerfiles/db/Dockerfile
 # * https://github.com/linz/postgresql-tableversion/blob/master/Dockerfile#L21
 
-# postgresql-17-wal2json is required to support live migrations (migrations
+# postgresql-18-wal2json is required to support live migrations (migrations
 # that don't require dump-then-restore workflows that take the database down for a significant
 # period of time)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        postgresql-17-wal2json \
+        postgresql-18-wal2json \
         pgxnclient \
         ca-certificates \
         gettext-base \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         pkg-config \
         libpq-dev \
-        postgresql-server-dev-17 \
+        postgresql-server-dev-18 \
         curl \
         libreadline6-dev \
         zlib1g-dev \
@@ -44,7 +44,7 @@ RUN \
 # PGX
 RUN cargo install cargo-pgrx --version 0.16.1 --locked
 
-RUN cargo pgrx init --pg17 $(which pg_config)
+RUN cargo pgrx init --pg18 $(which pg_config)
 
 USER root
 
@@ -72,8 +72,8 @@ RUN make && make install
 RUN rm -rf /home/supa /home/linz/ /home/nmandery
 
 # RUN chown -R postgres:postgres /home/supa /home/linz /home/nmandery/pg_byteamagic
-RUN chown -R postgres:postgres /usr/share/postgresql/17/extension
-RUN chown -R postgres:postgres /usr/lib/postgresql/17/lib
+RUN chown -R postgres:postgres /usr/share/postgresql/18/extension
+RUN chown -R postgres:postgres /usr/lib/postgresql/18/lib
 
 # Copies the envsubstr script to be included during init steps
 COPY ./docker/env.sh /usr/local/bin/env.sh
