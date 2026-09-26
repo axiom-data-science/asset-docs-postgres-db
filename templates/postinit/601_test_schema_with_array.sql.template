@@ -1,0 +1,106 @@
+-- Mock object type and schema for CSV uploads with an array of contacts.
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    uuid,
+    owner_sub,
+    label,
+    slug,
+    category,
+    description,
+    data
+)
+VALUES (
+    '10000000-0000-0000-0000-000000000601'::uuid,
+    'seed-superadmin',
+    'Test for CSV array upload',
+    'test_schema_with_array',
+    'document'::${ADDB_SCHEMA}.object_category,
+    'Mock object type for testing CSV uploads with contact arrays',
+    '{
+        "field_mappings": {
+            "slug": "code",
+            "label": "name"
+        }
+    }'::jsonb
+)
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    slug = EXCLUDED.slug,
+    category = EXCLUDED.category,
+    description = EXCLUDED.description,
+    data = EXCLUDED.data;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    uuid,
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+)
+VALUES (
+    '30000000-0000-0000-0000-000000000601'::uuid,
+    'seed-superadmin',
+    'test_schema_with_array',
+    'Test for CSV array upload',
+    'Default schema for testing CSV uploads with contact arrays',
+    true,
+    '10000000-0000-0000-0000-000000000601'::uuid,
+    '{
+        "$schema": "http://json-schema.org/draft-06/schema#",
+        "title": "Test Array Parent",
+        "type": "object",
+        "properties": {
+            "code": {
+                "title": "Parent code",
+                "type": "string"
+            },
+            "name": {
+                "title": "Parent name",
+                "type": "string"
+            },
+            "contacts": {
+                "title": "Contacts",
+                "type": "array",
+                "items": {
+                    "title": "Contact",
+                    "type": "object",
+                    "properties": {
+                        "parent_code": {
+                            "title": "Parent code",
+                            "type": "string"
+                        },
+                        "name": {
+                            "title": "Contact name",
+                            "type": "string"
+                        },
+                        "email": {
+                            "title": "Email",
+                            "type": "string",
+                            "format": "email"
+                        }
+                    },
+                    "required": [
+                        "parent_code",
+                        "name",
+                        "email"
+                    ]
+                }
+            }
+        },
+        "required": [
+            "code",
+            "name"
+        ]
+    }'::jsonb
+)
+ON CONFLICT (slug) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    is_type_default = EXCLUDED.is_type_default,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    json_schema = EXCLUDED.json_schema;
