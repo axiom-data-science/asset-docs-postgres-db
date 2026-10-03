@@ -1,461 +1,603 @@
--- Default object_type, schema and form for PAM (Passive Acoustic Monitoring)
+-- Default object types, schemas, and forms for PAM (Passive Acoustic Monitoring)
 
--- ============================================================================
--- PAM (Passive Acoustic Monitoring)
--- ============================================================================
+-- Remove the legacy (single) PAM type only when it has no documents (also deletes schemas n forms)
+DELETE FROM ${ADDB_SCHEMA}.object_type AS ot
+WHERE ot.slug = 'pam'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM ${ADDB_SCHEMA}.document AS d
+      WHERE d.object_type_uuid = ot.uuid
+  );
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_object_schema_json_schema()
-RETURNS jsonb AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_project_object_schema_json_schema()
+RETURNS jsonb AS $function$
 BEGIN
-    RETURN '{
+  RETURN '
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PAM project",
+  "description": "A pam project",
+  "type": "object",
+  "properties": {
+    "project": { "type": "string", "title": "Project", "description": "Project name", "minLength": 1 },
+    "dataSubmitter": { "type": "string", "title": "Data Submitter", "description": "Person responsible for submitting the data" },
+    "relatedProjects": {
+      "type": "array",
+      "title": "Related Projects",
+      "description": "Overarching projects for which the data were collected",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "contributor": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Contributor role",
+            "oneOf": [
+              { 
+                "const": "funder", 
+                "title": "Funder", 
+                "description": "Organizations that funded the data collection" 
+              },
+              { 
+                "const": "scientist", 
+                "title": "Scientist", 
+                "description": "People involved in collecting or processing the data" 
+              }
+            ]
+          },
+          "name": { "type": "string", "title": "Name" },
+          "phone": { "type": "string", "format": "phone", "title": "Telephone (primary)" },
+          "email": { "type": "string", "format": "email", "title": "Email" },
+          "url": { "type": "string", "title": "URL" },
+          "affiliation": { "type": "string", "title": "Organization" }
+        }
+      }
+    }
+  },
+  "required": ["project", "dataSubmitter"]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_site_object_schema_json_schema()
+RETURNS jsonb AS $function$
+BEGIN
+  RETURN '
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PAM Site",
+  "description": "A PAM site",
+  "type": "object",
+  "properties": {
+    "siteOrCruiseName": { "type": "string", "title": "Site or Cruise Name", "description": "Location name, cruise ID, or site" },
+    "alternateSiteName": { "type": "string", "title": "Alternate Site Name", "description": "Alternate site label" },
+    "platform": { "type": "string", "title": "Platform", "description": "Platform on which the acoustic recorders were deployed", "minLength": 1 },
+    "locationDetail": {
       "type": "object",
-      "title": "PAM Bioacoustic Metadata Schema",
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Location Detail",
+      "oneOf": [
+        {
+          "title": "Stationary Marine Location",
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "const": "stationary_marine" },
+            "seaArea": { "type": "string", "title": "Sea Area" },
+            "deploymentLocation": { "$ref": "#/definitions/marineInstrumentLocation", "title": "Deployment Location" },
+            "recoveryLocation": { "$ref": "#/definitions/marineInstrumentLocation", "title": "Recovery Location" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "Stationary Terrestrial Location",
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "const": "stationary_terrestrial" },
+            "latitude": { "type": "number", "title": "Latitude"},
+            "longitude": { "type": "number", "title": "Longitude" },
+            "surfaceElevation": { "type": "number", "title": "Surface Elevation" },
+            "instrumentElevation": { "type": "number", "title": "Instrument Elevation" }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "Mobile Marine Location",
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "const": "mobile_marine" },
+            "seaArea": { "type": "string", "title": "Sea Area" },
+            "locationDerivationDescription": { "type": "string", "title": "Location Derivation Description", "minLength": 1 },
+            "navigationFileURIList": { "type": "array", "title": "Navigation Files", "items": { "type": "string", "format": "uri" }, "minItems": 1 }
+          },
+          "required": ["type"]
+        },
+        {
+          "title": "Multipoint Stationary Marine Location",
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "const": "multipoint_stationary_marine" },
+            "seaArea": { "type": "string", "title": "Sea Area" },
+            "locations": { "type": "array", "title": "Locations", "items": { "$ref": "#/definitions/marineInstrumentLocation" }, "minItems": 1 }
+          },
+          "required": ["type"]
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "marineInstrumentLocation": {
+      "type": "object",
       "properties": {
-        "deployments": {
-          "type": "array",
-          "title": "Deployments",
-          "description": "Acoustic monitoring deployment information",
-          "items": {
-            "type": "object",
-            "properties": {
-              "deployment_id": {"type": "string", "title": "Deployment ID"},
-              "location": {"type": "string", "title": "Location"},
-              "start_date": {"type": "string", "format": "date", "title": "Start Date"},
-              "end_date": {"type": "string", "format": "date", "title": "End Date"},
-              "latitude": {"type": "number", "title": "Latitude"},
-              "longitude": {"type": "number", "title": "Longitude"},
-              "depth_meters": {"type": "number", "title": "Depth (meters)"},
-              "habitat_type": {"type": "string", "title": "Habitat Type"}
-            }
-          }
-        },
-        "recordings": {
-          "type": "array",
-          "title": "Recordings",
-          "description": "Audio recording metadata",
-          "items": {
-            "type": "object",
-            "properties": {
-              "recording_id": {"type": "string", "title": "Recording ID"},
-              "deployment_id": {"type": "string", "title": "Deployment ID"},
-              "timestamp": {"type": "string", "format": "date-time", "title": "Timestamp"},
-              "duration_seconds": {"type": "number", "title": "Duration (seconds)"},
-              "sample_rate_hz": {"type": "number", "title": "Sample Rate (Hz)"},
-              "bit_depth": {"type": "integer", "title": "Bit Depth"},
-              "file_format": {"type": "string", "title": "File Format", "enum": ["WAV", "MP3", "FLAC", "other"]},
-              "file_size_mb": {"type": "number", "title": "File Size (MB)"},
-              "quality_flag": {"type": "string", "title": "Quality Flag"}
-            }
-          }
-        },
-        "analyses": {
-          "type": "array",
-          "title": "Analyses",
-          "description": "Signal processing and analysis performed",
-          "items": {
-            "type": "object",
-            "properties": {
-              "analysis_id": {"type": "string", "title": "Analysis ID"},
-              "recording_id": {"type": "string", "title": "Recording ID"},
-              "analysis_type": {"type": "string", "title": "Analysis Type", "enum": ["spectrogram", "frequency_analysis", "event_detection", "classification", "source_localization", "other"]},
-              "analysis_software": {"type": "string", "title": "Analysis Software"},
-              "software_version": {"type": "string", "title": "Software Version"},
-              "analysis_parameters": {"type": "object", "title": "Analysis Parameters"},
-              "analyst_name": {"type": "string", "title": "Analyst Name"},
-              "analysis_date": {"type": "string", "format": "date", "title": "Analysis Date"}
-            }
-          }
-        },
-        "detections": {
-          "type": "array",
-          "title": "Detections",
-          "description": "Acoustic event detections and classifications",
-          "items": {
-            "type": "object",
-            "properties": {
-              "detection_id": {"type": "string", "title": "Detection ID"},
-              "analysis_id": {"type": "string", "title": "Analysis ID"},
-              "species": {"type": "string", "title": "Species"},
-              "call_type": {"type": "string", "title": "Call Type"},
-              "start_time_seconds": {"type": "number", "title": "Start Time (seconds)"},
-              "end_time_seconds": {"type": "number", "title": "End Time (seconds)"},
-              "start_frequency_hz": {"type": "number", "title": "Start Frequency (Hz)"},
-              "end_frequency_hz": {"type": "number", "title": "End Frequency (Hz)"},
-              "confidence": {"type": "number", "title": "Confidence (0-1)", "minimum": 0, "maximum": 1},
-              "signal_to_noise_ratio_db": {"type": "number", "title": "Signal-to-Noise Ratio (dB)"},
-              "comments": {"type": "string", "title": "Comments"}
-            }
-          }
-        },
-        "support": {
-          "type": "object",
-          "title": "Supporting Information",
-          "description": "Related resources and infrastructure",
-          "properties": {
-            "devices": {
-              "type": "array",
-              "title": "Devices",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "device_id": {"type": "string", "title": "Device ID"},
-                  "device_type": {"type": "string", "title": "Device Type"},
-                  "manufacturer": {"type": "string", "title": "Manufacturer"},
-                  "model": {"type": "string", "title": "Model"},
-                  "serial_number": {"type": "string", "title": "Serial Number"}
-                }
-              }
-            },
-            "projects": {
-              "type": "array",
-              "title": "Associated Projects",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "project_id": {"type": "string", "title": "Project ID"},
-                  "project_name": {"type": "string", "title": "Project Name"},
-                  "principal_investigator": {"type": "string", "title": "Principal Investigator"},
-                  "funding_agency": {"type": "string", "title": "Funding Agency"}
-                }
-              }
-            },
-            "sites": {
-              "type": "array",
-              "title": "Study Sites",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "site_id": {"type": "string", "title": "Site ID"},
-                  "site_name": {"type": "string", "title": "Site Name"},
-                  "site_code": {"type": "string", "title": "Site Code"},
-                  "region": {"type": "string", "title": "Region"}
+        "latitude": { "type": "number", "title": "Latitude"},
+        "longitude": { "type": "number", "title": "Longitude" },
+        "seaFloorDepth": { "type": "number", "title": "Seafloor Depth", "exclusiveMaximum": 0 },
+        "instrumentDepth": { "type": "number", "title": "Instrument Depth", "exclusiveMaximum": 0 }
+      }
+    }
+  },
+  "required": ["siteOrCruiseName","platform", "locationDetail"]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_deployment_object_schema_json_schema()
+RETURNS jsonb AS $function$
+BEGIN
+  RETURN '
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PAM Deployment",
+  "description": "One deployment event including recordings and analyses",
+  "type": "object",
+  "properties": {
+    "dataCollectionName": { "type": "string", "title": "Data Collection Name", "description": "Unique dataset name for the archive", "minLength": 1 },
+    "averageFileLengthMinutes": { "type": "number", "title": "Average File Length (minutes)", "description": "Approximate average audio-file length used for aggregation", "minimum": 0 },
+    "deploymentTitle": { "type": "string", "title": "Deployment Title", "description": "Title used in the dataset-level metadata record" },
+    "deploymentDescription": { "type": "string", "title": "Deployment Description", "description": "Description of the data and its purpose" },
+    "deploymentId": { "type": "string", "title": "Deployment ID", "description": "Deployment identifier at a site with multiple deployments" },
+    "alternateDeploymentName": { "type": "string", "title": "Alternate Deployment Name", "description": "Alternate deployment label" },
+    "instrument": { "type": "string", "title": "Instrument", "description": "Passive acoustic recorder used to collect data", "minLength": 1 },
+    "instrumentId": { "type": "string", "title": "Instrument ID", "description": "Unique instrument identifier" },
+    "sensitivityFlatValue": { "type": "number", "title": "Sensitivity Flat Value", "description": "Frequency-independent calibration sensitivity value" },
+    "preDeploymentCalibrationDate": { "type": "string", "format": "date", "title": "Pre-Deployment Calibration Date" },
+    "postDeploymentCalibrationDate": { "type": "string", "format": "date", "title": "Post-Deployment Calibration Date" },
+    "calibrationState": {
+      "type": "string",
+      "title": "Calibration State",
+      "enum": ["Factory Calibrated", "Calibrated Pre-Deployment", "Calibrated Post-Deployment", "Calibrated Pre & Post Deployment", "Not calibrated / not applicable"]
+    },
+    "calibrationDescription": { "type": "string", "title": "Calibration Description" },
+    "sourceURI": { "type": "string", "format": "uri", "title": "Source URI", "description": "URI containing the audio files for this dataset" },
+    "calibrationDocumentsURI": { "type": "string", "format": "uri", "title": "Calibration Documents URI" },
+    "documentsURI": { "type": "string", "format": "uri", "title": "Documents URI" },
+    "temperatureURI": { "type": "string", "format": "uri", "title": "Temperature Data URI" },
+    "otherURI": { "type": "string", "format": "uri", "title": "Other Data URI" },
+    "deploymentTime": { "type": "string", "format": "date-time", "title": "Deployment Time" },
+    "recoveryTime": { "type": "string", "format": "date-time", "title": "Recovery Time" },
+    "audioStartTime": { "type": "string", "format": "date-time", "title": "Audio Start Time" },
+    "audioEndTime": { "type": "string", "format": "date-time", "title": "Audio End Time" },
+    "comments": { "type": "string", "title": "Comments", "description": "Additional information useful to future data users" },
+    "recordings": {
+      "type": "array",
+      "title": "Recordings",
+      "items": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "title": "Channels",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startTime": { "type": "string", "format": "date-time", "title": "Start Time", "description": "Start time for this channel''s audio data" },
+                "endTime": { "type": "string", "format": "date-time", "title": "End Time", "description": "End time for this channel''s audio data" },
+                "sampleRates": {
+                  "type": "array",
+                  "title": "Sample Rate Intervals",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
+                      "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
+                      "sampleRate": { "type": "number", "title": "Sample Rate (Hz)", "description": "Audio sample rate in hertz", "minimum": 0 },
+                      "sampleBits": { "type": "integer", "title": "Sample Bits", "description": "Bit depth in bits per sample", "minimum": 0 }
+                    }
+                  }
+                },
+                "dutyCycles": {
+                  "type": "array",
+                  "title": "Duty Cycle Intervals",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
+                      "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
+                      "duration": { "type": "number", "title": "Duration (seconds)", "description": "Continuous recording duration", "minimum": 0 },
+                      "interval": { "type": "number", "title": "Interval (seconds)", "description": "Time between starts of consecutive recording periods", "minimum": 0 }
+                    },
+                    "required": ["duration", "interval"]
+                  }
                 }
               }
             }
           }
         },
-        "qaqc": {
-          "type": "object",
-          "title": "Quality Assurance / Quality Control",
-          "description": "Data quality information",
-          "properties": {
-            "calibration_date": {"type": "string", "format": "date", "title": "Calibration Date"},
-            "calibration_standard": {"type": "string", "title": "Calibration Standard"},
-            "noise_floor_db": {"type": "number", "title": "Noise Floor (dB)"},
-            "dynamic_range_db": {"type": "number", "title": "Dynamic Range (dB)"},
-            "data_gaps": {"type": "string", "title": "Data Gaps Description"},
-            "data_issues": {"type": "string", "title": "Known Data Issues"},
-            "validation_status": {"type": "string", "title": "Validation Status", "enum": ["unchecked", "passed", "failed", "conditional"]}
-          }
-        },
-        "tracks": {
-          "type": "array",
-          "title": "Acoustic Tracks",
-          "description": "Individual tracked acoustic events",
-          "items": {
-            "type": "object",
-            "properties": {
-              "track_id": {"type": "string", "title": "Track ID"},
-              "detection_ids": {"type": "array", "title": "Associated Detection IDs", "items": {"type": "string"}},
-              "track_type": {"type": "string", "title": "Track Type"},
-              "species": {"type": "string", "title": "Species"},
-              "individual_id": {"type": "string", "title": "Individual ID (if identifiable)"},
-              "start_time": {"type": "string", "format": "date-time", "title": "Start Time"},
-              "end_time": {"type": "string", "format": "date-time", "title": "End Time"},
-              "track_notes": {"type": "string", "title": "Track Notes"}
+        "required": ["channels"]
+      }
+    },
+    "analyses": {
+      "type": "array",
+      "title": "Analyses",
+      "items": {
+        "type": "object",
+        "properties": {
+          "qualityAnalyst": { "type": "string", "title": "Quality Analyst", "description": "Person who performed the data quality assessment" },
+          "qualityAssessmentDescription": { "type": "string", "title": "Quality Assessment Description", "description": "Overall description of the quality assessment" },
+          "qualityEntries": {
+            "type": "array",
+            "title": "Quality Entries",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
+                "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
+                "minFrequency": { "type": "number", "title": "Minimum Frequency (Hz)", "description": "Minimum frequency covered by the assessment", "minimum": 0 },
+                "maxFrequency": { "type": "number", "title": "Maximum Frequency (Hz)", "description": "Maximum frequency covered by the assessment", "minimum": 0 },
+                "qualityLevel": { "type": "string", "title": "Quality Level", "enum": ["unverified", "good", "compromised", "unusable"] },
+                "comments": { "type": "string", "title": "Comments", "description": "Additional information about this quality interval" },
+                "channelNumbers": { "type": "array", "title": "Channel Numbers", "description": "Channels to which this quality entry applies", "items": { "type": "integer", "minimum": 1 }, "minItems": 1 }
+              },
+              "required": ["startTime", "endTime", "minFrequency", "maxFrequency", "qualityLevel", "channelNumbers"]
             }
           }
         }
-      },
-      "additionalProperties": true
-    }'::jsonb;
-END
-$$ LANGUAGE plpgsql;
+      }
+    }
+  },
+  "required": ["dataCollectionName", "averageFileLengthMinutes", "deploymentTitle", "deploymentDescription", "instrument", "sourceURI", "calibrationState", "sensitivityFlatValue", "recordings"]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
 
-
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_form_form_config()
-RETURNS jsonb AS $$
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_project_form_schema_override_config()
+RETURNS jsonb AS $function$
 BEGIN
-    RETURN '{
-      "id": "pam-bioacoustic-form",
-      "label": "PAM Bioacoustic Metadata Form",
-      "description": "Comprehensive form for capturing PAM bioacoustic data and analysis",
-      "pages": [
+  RETURN '
+{
+  "id": "pam_project",
+  "label": "PAM Project",
+  "fields": [
+    {
+      "id": "wrap1",
+      "type": "objectWrapper",
+      "label": "",
+      "layout": "grid2",
+      "fields": [{ "prop": "project" }, { "prop": "dataSubmitter" }]
+    },
+    {
+      "prop": "contributor[]",
+      "fields": [
+        { "prop": "contributor[].role", "label": "Role", "type": "select" },
         {
-          "id": "deployments",
-          "label": "Deployments",
+          "id": "contributor_contact_wrapper",
+          "type": "objectWrapper",
+          "layout": "grid2",
+          "label": "",
+          "settings": { "className": "p-0 bg-transparent" },
+          "fields": [
+            { "prop": "contributor[].name" },
+            { "prop": "contributor[].phone" },
+            { "prop": "contributor[].email" },
+            { "prop": "contributor[].url" }
+          ]
+        }
+      ]
+    },
+    { "prop": "relatedProjects[]" }
+  ]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_site_form_schema_override_config()
+RETURNS jsonb AS $function$
+BEGIN
+  RETURN '
+{
+  "id": "pam_site",
+  "label": "PAM site",
+  "fields": [
+    { "prop": "siteOrCruiseName" },
+    {
+      "id": "group-1",
+      "type": "object",
+      "label": "",
+      "skip_path": true,
+      "layout": "grid2",
+      "settings": { "className": "pt-0" },
+      "fields": [{ "prop": "alternateSiteName" }, { "prop": "platform" }]
+    },
+    { "prop": "locationDetail" }
+  ]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.pam_deployment_form_schema_override_config()
+RETURNS jsonb AS $function$
+BEGIN
+  RETURN '
+{
+  "id": "pam_deployment",
+  "label": "PAM Deployment and Analyses",
+  "pages": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "description": "Dataset identity and deployment details",
+      "fields": [
+        { "prop": "dataCollectionName" },
+        { "prop": "averageFileLengthMinutes" },
+        { "prop": "deploymentTitle" },
+        { "prop": "deploymentDescription", "type": "long_text" },
+        { "prop": "deploymentId" },
+        { "prop": "alternateDeploymentName" },
+        { "prop": "instrument" },
+        { "prop": "instrumentId" }
+      ]
+    },
+    {
+      "id": "calibration",
+      "label": "Calibration and Resources",
+      "description": "Instrument calibration and related data locations",
+      "fields": [
+        {
+          "id": "sensitivity_calibration_state_wrapper",
+          "type": "objectWrapper",
+          "label": "",
+          "layout": "grid2",
+          "fields": [{ "prop": "sensitivityFlatValue" }, { "prop": "calibrationState" }]
+        },
+        {
+          "id": "calibration_dates_wrapper",
+          "type": "objectWrapper",
+          "label": "",
+          "layout": "grid2",
+          "fields": [{ "prop": "preDeploymentCalibrationDate" }, { "prop": "postDeploymentCalibrationDate" }]
+        },
+        { "prop": "calibrationDescription", "type": "long_text" },
+        { "prop": "sourceURI" },
+        { "prop": "calibrationDocumentsURI" },
+        { "prop": "documentsURI" },
+        { "prop": "temperatureURI" },
+        { "prop": "otherURI" }
+      ]
+    },
+    {
+      "id": "timing",
+      "label": "Deployment Timing",
+      "fields": [
+        {
+          "id": "deployment_recovery_times_wrapper",
+          "type": "objectWrapper",
+          "label": "",
+          "layout": "grid2",
+          "fields": [{ "prop": "deploymentTime" }, { "prop": "recoveryTime" }]
+        },
+        {
+          "id": "audio_times_wrapper",
+          "type": "objectWrapper",
+          "label": "",
+          "layout": "grid2",
+          "fields": [{ "prop": "audioStartTime" }, { "prop": "audioEndTime" }]
+        },
+        { "prop": "comments", "type": "long_text" }
+      ]
+    },
+    {
+      "id": "recordings",
+      "label": "Recordings",
+      "description": "Audio channels, sample rates, and duty cycles",
+      "fields": [
+        {
+          "prop": "recordings",
+          "type": "object",
+          "multiple": true,
           "fields": [
             {
-              "id": "deployments",
+              "prop": "recordings[].channels",
               "type": "object",
-              "label": "Acoustic Monitoring Deployments",
-              "fields": [
-                {"id": "deployment_id", "type": "text", "label": "Deployment ID", "required": true},
-                {"id": "location", "type": "text", "label": "Location", "required": true},
-                {"id": "start_date", "type": "date", "label": "Start Date", "required": true},
-                {"id": "end_date", "type": "date", "label": "End Date"},
-                {"id": "latitude", "type": "number", "label": "Latitude", "required": true},
-                {"id": "longitude", "type": "number", "label": "Longitude", "required": true},
-                {"id": "depth_meters", "type": "number", "label": "Depth (meters)"},
-                {"id": "habitat_type", "type": "text", "label": "Habitat Type"}
-              ],
               "multiple": true,
-              "required": true
-            }
-          ]
-        },
-        {
-          "id": "recordings",
-          "label": "Recordings",
-          "fields": [
-            {
-              "id": "recordings",
-              "type": "object",
-              "label": "Audio Recordings",
               "fields": [
-                {"id": "recording_id", "type": "text", "label": "Recording ID", "required": true},
-                {"id": "deployment_id", "type": "text", "label": "Deployment ID", "required": true},
-                {"id": "timestamp", "type": "text", "label": "Timestamp", "description": "ISO 8601 format"},
-                {"id": "duration_seconds", "type": "number", "label": "Duration (seconds)"},
-                {"id": "sample_rate_hz", "type": "number", "label": "Sample Rate (Hz)"},
-                {"id": "bit_depth", "type": "number", "label": "Bit Depth"},
                 {
-                  "id": "file_format",
-                  "type": "select",
-                  "label": "File Format",
-                  "options": [
-                    {"label": "WAV", "value": "WAV"},
-                    {"label": "MP3", "value": "MP3"},
-                    {"label": "FLAC", "value": "FLAC"},
-                    {"label": "Other", "value": "other"}
+                  "id": "recording_channel_times_wrapper",
+                  "type": "objectWrapper",
+                  "label": "",
+                  "layout": "grid2",
+                  "settings": { "className": "p-0 bg-transparent" },
+                  "fields": [{ "prop": "recordings[].channels[].startTime" }, { "prop": "recordings[].channels[].endTime" }]
+                },
+                {
+                  "prop": "recordings[].channels[].sampleRates",
+                  "type": "object",
+                  "multiple": true,
+                  "layout": "grid2",
+                  "fields": [
+                    { "prop": "recordings[].channels[].sampleRates[].startTime" },
+                    { "prop": "recordings[].channels[].sampleRates[].endTime" },
+                    { "prop": "recordings[].channels[].sampleRates[].sampleRate" },
+                    { "prop": "recordings[].channels[].sampleRates[].sampleBits" }
                   ]
                 },
-                {"id": "file_size_mb", "type": "number", "label": "File Size (MB)"},
-                {"id": "quality_flag", "type": "text", "label": "Quality Flag"}
-              ],
-              "multiple": true
-            }
-          ]
-        },
-        {
-          "id": "analyses",
-          "label": "Analyses",
-          "fields": [
-            {
-              "id": "analyses",
-              "type": "object",
-              "label": "Signal Processing and Analysis",
-              "fields": [
-                {"id": "analysis_id", "type": "text", "label": "Analysis ID", "required": true},
-                {"id": "recording_id", "type": "text", "label": "Recording ID", "required": true},
                 {
-                  "id": "analysis_type",
-                  "type": "select",
-                  "label": "Analysis Type",
-                  "required": true,
-                  "options": [
-                    {"label": "Spectrogram", "value": "spectrogram"},
-                    {"label": "Frequency Analysis", "value": "frequency_analysis"},
-                    {"label": "Event Detection", "value": "event_detection"},
-                    {"label": "Classification", "value": "classification"},
-                    {"label": "Source Localization", "value": "source_localization"},
-                    {"label": "Other", "value": "other"}
+                  "prop": "recordings[].channels[].dutyCycles",
+                  "type": "object",
+                  "multiple": true,
+                  "layout": "grid2",
+                  "fields": [
+                    { "prop": "recordings[].channels[].dutyCycles[].startTime" },
+                    { "prop": "recordings[].channels[].dutyCycles[].endTime" },
+                    { "prop": "recordings[].channels[].dutyCycles[].duration" },
+                    { "prop": "recordings[].channels[].dutyCycles[].interval" }
                   ]
-                },
-                {"id": "analysis_software", "type": "text", "label": "Analysis Software"},
-                {"id": "software_version", "type": "text", "label": "Software Version"},
-                {"id": "analyst_name", "type": "text", "label": "Analyst Name"},
-                {"id": "analysis_date", "type": "date", "label": "Analysis Date"}
-              ],
-              "multiple": true
-            }
-          ]
-        },
-        {
-          "id": "detections",
-          "label": "Detections",
-          "fields": [
-            {
-              "id": "detections",
-              "type": "object",
-              "label": "Acoustic Event Detections",
-              "fields": [
-                {"id": "detection_id", "type": "text", "label": "Detection ID", "required": true},
-                {"id": "analysis_id", "type": "text", "label": "Analysis ID"},
-                {"id": "species", "type": "text", "label": "Species", "required": true},
-                {"id": "call_type", "type": "text", "label": "Call Type"},
-                {"id": "start_time_seconds", "type": "number", "label": "Start Time (seconds)"},
-                {"id": "end_time_seconds", "type": "number", "label": "End Time (seconds)"},
-                {"id": "start_frequency_hz", "type": "number", "label": "Start Frequency (Hz)"},
-                {"id": "end_frequency_hz", "type": "number", "label": "End Frequency (Hz)"},
-                {"id": "confidence", "type": "number", "label": "Confidence (0-1)"},
-                {"id": "signal_to_noise_ratio_db", "type": "number", "label": "Signal-to-Noise Ratio (dB)"},
-                {"id": "comments", "type": "long_text", "label": "Comments"}
-              ],
-              "multiple": true
-            }
-          ]
-        },
-        {
-          "id": "support",
-          "label": "Supporting Information",
-          "fields": [
-            {
-              "id": "devices",
-              "type": "object",
-              "label": "Devices",
-              "fields": [
-                {"id": "device_id", "type": "text", "label": "Device ID"},
-                {"id": "device_type", "type": "text", "label": "Device Type"},
-                {"id": "manufacturer", "type": "text", "label": "Manufacturer"},
-                {"id": "model", "type": "text", "label": "Model"},
-                {"id": "serial_number", "type": "text", "label": "Serial Number"}
-              ],
-              "multiple": true
-            },
-            {
-              "id": "projects",
-              "type": "object",
-              "label": "Associated Projects",
-              "fields": [
-                {"id": "project_id", "type": "text", "label": "Project ID"},
-                {"id": "project_name", "type": "text", "label": "Project Name"},
-                {"id": "principal_investigator", "type": "text", "label": "Principal Investigator"},
-                {"id": "funding_agency", "type": "text", "label": "Funding Agency"}
-              ],
-              "multiple": true
-            },
-            {
-              "id": "sites",
-              "type": "object",
-              "label": "Study Sites",
-              "fields": [
-                {"id": "site_id", "type": "text", "label": "Site ID"},
-                {"id": "site_name", "type": "text", "label": "Site Name"},
-                {"id": "site_code", "type": "text", "label": "Site Code"},
-                {"id": "region", "type": "text", "label": "Region"}
-              ],
-              "multiple": true
-            }
-          ]
-        },
-        {
-          "id": "qaqc",
-          "label": "Quality Assurance/Control",
-          "fields": [
-            {"id": "calibration_date", "type": "date", "label": "Calibration Date"},
-            {"id": "calibration_standard", "type": "text", "label": "Calibration Standard"},
-            {"id": "noise_floor_db", "type": "number", "label": "Noise Floor (dB)"},
-            {"id": "dynamic_range_db", "type": "number", "label": "Dynamic Range (dB)"},
-            {"id": "data_gaps", "type": "long_text", "label": "Data Gaps Description"},
-            {"id": "data_issues", "type": "long_text", "label": "Known Data Issues"},
-            {
-              "id": "validation_status",
-              "type": "select",
-              "label": "Validation Status",
-              "options": [
-                {"label": "Unchecked", "value": "unchecked"},
-                {"label": "Passed", "value": "passed"},
-                {"label": "Failed", "value": "failed"},
-                {"label": "Conditional", "value": "conditional"}
+                }
               ]
-            }
-          ]
-        },
-        {
-          "id": "tracks",
-          "label": "Acoustic Tracks",
-          "fields": [
-            {
-              "id": "tracks",
-              "type": "object",
-              "label": "Tracked Acoustic Events",
-              "fields": [
-                {"id": "track_id", "type": "text", "label": "Track ID", "required": true},
-                {"id": "track_type", "type": "text", "label": "Track Type"},
-                {"id": "species", "type": "text", "label": "Species", "required": true},
-                {"id": "individual_id", "type": "text", "label": "Individual ID (if identifiable)"},
-                {"id": "start_time", "type": "text", "label": "Start Time", "description": "ISO 8601 format"},
-                {"id": "end_time", "type": "text", "label": "End Time", "description": "ISO 8601 format"},
-                {"id": "track_notes", "type": "long_text", "label": "Track Notes"}
-              ],
-              "multiple": true
             }
           ]
         }
       ]
-    }'::jsonb;
-END
-$$ LANGUAGE plpgsql;
+    },
+    {
+      "id": "analyses",
+      "label": "Analyses",
+      "description": "Quality assessments and quality intervals",
+      "fields": [
+        {
+          "prop": "analyses",
+          "type": "object",
+          "multiple": true,
+          "fields": [
+            { "prop": "analyses[].qualityAnalyst" },
+            { "prop": "analyses[].qualityAssessmentDescription", "type": "long_text" },
+            {
+              "prop": "analyses[].qualityEntries",
+              "type": "object",
+              "multiple": true,
+              "fields": [
+                {
+                  "id": "quality_entry_times_wrapper",
+                  "type": "objectWrapper",
+                  "label": "",
+                  "layout": "grid2",
+                  "fields": [{ "prop": "analyses[].qualityEntries[].startTime" }, { "prop": "analyses[].qualityEntries[].endTime" }]
+                },
+                {
+                  "id": "quality_frequency_level_wrapper",
+                  "type": "objectWrapper",
+                  "label": "",
+                  "layout": "grid3",
+                  "fields": [
+                    { "prop": "analyses[].qualityEntries[].minFrequency", "settings": { "descriptionPresentation": "tooltip" } },
+                    { "prop": "analyses[].qualityEntries[].maxFrequency", "settings": { "descriptionPresentation": "tooltip" } },
+                    { "prop": "analyses[].qualityEntries[].qualityLevel" }
+                  ]
+                },
+                { "prop": "analyses[].qualityEntries[].comments", "type": "long_text" },
+                { "prop": "analyses[].qualityEntries[].channelNumbers" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+'::jsonb;
+END;
+$function$ LANGUAGE plpgsql;
 
-
-
-
--- Insert the PAM object_type (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.object_type (
-    owner_sub,
-    label,
-    slug,
-    category,
-    description
-) VALUES (
-    'system',
-    'PAM',
-    'pam',
-    'document'::${ADDB_SCHEMA}.object_category,
-    'Passive Acoustic Monitoring bioacoustic data and analysis'
+    owner_sub, label, slug, category, description, data
+) VALUES
+(
+    'system', 'PAM: project', 'pam_project', 'document'::${ADDB_SCHEMA}.object_category,
+    'A PAM project',
+    '{
+      "field_mappings": {
+        "label": "project"
+      },
+      "expected_child_types": [
+        {
+          "single": false,
+          "object_type_slug": "pam_site",
+          "label": "PAM Site",
+          "predicate": "has_parent",
+          "to_parent_predicate": "has_child",
+          "precedence": 1
+        }
+      ]
+    }'::jsonb
+),
+(
+    'system', 'PAM: site', 'pam_site', 'document'::${ADDB_SCHEMA}.object_category,
+    'A PAM site',
+    '{
+      "field_mappings": {
+        "label": "siteOrCruiseName"
+      },
+      "expected_child_types": [
+        {
+          "single": false,
+          "object_type_slug": "pam_deployment",
+          "label": "PAM Deployment",
+          "predicate": "has_parent",
+          "to_parent_predicate": "has_child",
+          "precedence": 1
+        }
+      ]
+    }'::jsonb
+),
+(
+    'system', 'PAM: deployment', 'pam_deployment', 'document'::${ADDB_SCHEMA}.object_category,
+    'One deployment event including recordings and analyses',
+    '{
+      "field_mappings": {
+        "label": "dataCollectionName"
+      },
+      "expected_child_types": []
+    }'::jsonb
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    data = EXCLUDED.data;
 
--- Insert the default schema for PAM (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.object_schema (
-    owner_sub,
-    slug,
-    label,
-    description,
-    is_type_default,
-    object_type_uuid,
-    json_schema
-) VALUES (
-    'system',
-    'pam',
-    'PAM Bioacoustic Schema',
-    'Default schema for PAM object type with Makara bioacoustic metadata',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'pam'
-        LIMIT 1
-    ),
-    ${ADDB_SCHEMA}.pam_object_schema_json_schema()
-    
+    owner_sub, slug, label, description, is_type_default, object_type_uuid, json_schema
+) VALUES
+(
+    'system', 'pam_project', 'PAM Project', 'Default schema for PAM project object type', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_project' LIMIT 1),
+    ${ADDB_SCHEMA}.pam_project_object_schema_json_schema()
+),
+(
+    'system', 'pam_site', 'PAM Site', 'Default schema for PAM site object type', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_site' LIMIT 1),
+    ${ADDB_SCHEMA}.pam_site_object_schema_json_schema()
+),
+(
+    'system', 'pam_deployment', 'PAM Deployment', 'Default schema for PAM deployment object type', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_deployment' LIMIT 1),
+    ${ADDB_SCHEMA}.pam_deployment_object_schema_json_schema()
 )
 ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
 
-
--- Insert the default form for PAM (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.form (
-    owner_sub,
-    slug,
-    label,
-    is_schema_and_version_default,
-    object_type_uuid,
-    object_schema_version,
-    form_config,
-    use_form_config
-) VALUES (
-    'system',
-    'pam',
-    'PAM Bioacoustic Metadata Form',
-    true,
-    (
-        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
-        WHERE slug = 'pam'
-        LIMIT 1
-    ),
-    1,
-    ${ADDB_SCHEMA}.pam_form_form_config(),
-    true
+    owner_sub, slug, label, is_schema_and_version_default, object_type_uuid,
+    object_schema_version, schema_override_config, use_form_config
+) VALUES
+(
+    'system', 'pam_project', 'PAM Project', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_project' LIMIT 1),
+    1, ${ADDB_SCHEMA}.pam_project_form_schema_override_config(), false
+),
+(
+    'system', 'pam_site', 'PAM Site', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_site' LIMIT 1),
+    1, ${ADDB_SCHEMA}.pam_site_form_schema_override_config(), false
+),
+(
+    'system', 'pam_deployment', 'PAM Deployment', true,
+    (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_deployment' LIMIT 1),
+    1, ${ADDB_SCHEMA}.pam_deployment_form_schema_override_config(), false
 )
-ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;
+ON CONFLICT (slug) DO UPDATE SET
+    schema_override_config = EXCLUDED.schema_override_config,
+    use_form_config = EXCLUDED.use_form_config;
