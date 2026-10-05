@@ -105,8 +105,8 @@ BEGIN
       ]
     },
     "contributor": {
-      "type": "object",
-      "additionalProperties": {
+      "type": "array",
+      "items": {
         "type": "object",
         "properties": {
           "role": {
@@ -190,12 +190,12 @@ BEGIN
       "description": "Optional. RA dependent."
     },
     "latitude": {
-      "type": "string",
+      "type": "number",
       "title": "Latitude (DD, N is +)",
       "description": "Latitude in decimal degrees"
     },
     "longitude": {
-      "type": "string",
+      "type": "number",
       "title": "Longitude (DD, E is +)",
       "description": "Longitude in decimal degrees"
     },
