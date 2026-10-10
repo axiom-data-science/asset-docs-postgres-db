@@ -11,7 +11,7 @@ BEGIN
       "expected_child_types": [
         {
           "single": false,
-          "object_type_query": "slug=ilike.%modl_collection_%",
+          "object_type_query": "or=(slug.ilike.%modl_collection_%,slug.eq.modl_variable_metadata)",
           "label": "Asset collector metadata",
           "description": "Select the collection type that corresponds with your data source",
           "to_parent_predicate": "has_parent"
@@ -570,6 +570,164 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_variable_metadata_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "field_mappings": {
+      "label": "dataset_id",
+      "slug": "dataset_id"
+    }
+  }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_variable_metadata_object_schema_json_schema()
+RETURNS jsonb as $$
+BEGIN
+  RETURN '{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "title": "ERDDAP Variable Metadata",
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+        "dataset_id": {
+            "title": "Dataset ID",
+            "description": "ERDDAP dataset ID of the parent MODL dataset.",
+            "type": "string"
+        },
+        "variables": {
+            "title": "Variables",
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "variable_name": {
+                        "title": "Variable Name",
+                        "description": "Name of the ERDDAP data variable or dimension.",
+                        "type": "string"
+                    },
+                    "_CoordinateAxisType": {
+                        "title": "Coordinate Axis Type",
+                        "type": "string"
+                    },
+                    "_FillValue": {
+                        "title": "Fill Value",
+                        "description": "Numeric value used to represent missing data.",
+                        "type": "number"
+                    },
+                    "actual_range": {
+                        "title": "Actual Range",
+                        "description": "Minimum and maximum values; ERDDAP supplies these as a comma-separated pair.",
+                        "type": "array",
+                        "items": { "type": "number" },
+                        "minItems": 2,
+                        "maxItems": 2
+                    },
+                    "axis": {
+                        "title": "Axis",
+                        "type": "string",
+                        "enum": ["X", "Y", "Z", "T"]
+                    },
+                    "colorBarMaximum": {
+                        "title": "Color Bar Maximum",
+                        "type": "number"
+                    },
+                    "colorBarMinimum": {
+                        "title": "Color Bar Minimum",
+                        "type": "number"
+                    },
+                    "ioos_category": {
+                        "title": "IOOS Category",
+                        "type": "string"
+                    },
+                    "long_name": {
+                        "title": "Long Name",
+                        "type": "string"
+                    },
+                    "point_spacing": {
+                        "title": "Point Spacing",
+                        "type": "string",
+                        "enum": ["even", "uneven"]
+                    },
+                    "standard_name": {
+                        "title": "Standard Name",
+                        "type": "string"
+                    },
+                    "time_origin": {
+                        "title": "Time Origin",
+                        "type": "string"
+                    },
+                    "units": {
+                        "title": "Units",
+                        "type": "string"
+                    }
+                },
+                "required": ["variable_name"]
+            }
+        }
+    },
+    "required": ["dataset_id"]
+}'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_variable_form_schema_override_config()
+RETURNS jsonb AS $$
+BEGIN
+  RETURN '{
+    "fields": [
+        {"prop": "dataset_id"},
+        {
+            "prop": "variables",
+            "type": "objectList",
+            "settings": {
+                "keyField": "variable_name",
+                "showInitialObject": true
+            },
+            "fields": [
+                {
+                    "id": "wrapper",
+                    "label": "",
+                    "type": "objectWrapper",
+                    "tabs": [
+                        {
+                            "id": "general",
+                            "label": "General",
+                            "layout": "grid2",
+                            "fields": [
+                                { "prop": "variable_name", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "units", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "standard_name", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "long_name", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "ioos_category", "label": "IOOS Category", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "axis", "settings": { "descriptionPresentation":"tooltip"} }
+                            ]
+                        },
+                        {
+                            "id": "additional",
+                            "label": "Additional",
+                            "layout": "grid2",
+                            "fields": [
+                                { "prop": "_CoordinateAxisType", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "_FillValue", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "actual_range", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "colorBarMaximum", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "colorBarMinimum", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "point_spacing", "settings": { "descriptionPresentation":"tooltip"} },
+                                { "prop": "time_origin", "settings": { "descriptionPresentation":"tooltip"} }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_type_data()
 RETURNS jsonb AS $$
 BEGIN
@@ -1001,7 +1159,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     ${ADDB_SCHEMA}.modl_form_form_config(),
     true
 )
-ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;;
+ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;
 
 
 
@@ -1044,6 +1202,73 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     ${ADDB_SCHEMA}.modl_collection_hohonu_object_schema_json_schema()
 )
 ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
+
+
+INSERT INTO ${ADDB_SCHEMA}.object_type (
+    owner_sub,
+    label,
+    slug,
+    category,
+    description,
+    data
+) VALUES (
+    'system',
+    'MODL variable metadata',
+    'modl_variable_metadata',
+    'document'::${ADDB_SCHEMA}.object_category,
+    '',
+    ${ADDB_SCHEMA}.modl_variable_metadata_object_type_data()
+)
+ON CONFLICT (slug) DO NOTHING;
+
+INSERT INTO ${ADDB_SCHEMA}.object_schema (
+    owner_sub,
+    slug,
+    label,
+    description,
+    is_type_default,
+    object_type_uuid,
+    json_schema
+) VALUES (
+    'system',
+    'modl_variable_metadata',
+    'MODL Variable Metadata',
+    'Default schema for MODL Variable Metadata',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_variable_metadata'
+        LIMIT 1
+    ),
+    ${ADDB_SCHEMA}.modl_variable_metadata_object_schema_json_schema()
+)
+ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
+
+-- Insert the default form for MODL variable (skip if slug already exists)
+INSERT INTO ${ADDB_SCHEMA}.form (
+    owner_sub,
+    slug,
+    label,
+    is_schema_and_version_default,
+    object_type_uuid,
+    object_schema_version,
+    schema_override_config,
+    use_form_config
+) VALUES (
+    'system',
+    'modl_variable_metadata',
+    'MODL Variable Metadata Form',
+    true,
+    (
+        SELECT uuid FROM ${ADDB_SCHEMA}.object_type
+        WHERE slug = 'modl_variable_metadata'
+        LIMIT 1
+    ),
+    1,
+    ${ADDB_SCHEMA}.modl_variable_form_schema_override_config(),
+    false
+)
+ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;;
 
 
 INSERT INTO ${ADDB_SCHEMA}.object_type (
