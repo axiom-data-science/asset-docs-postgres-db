@@ -513,6 +513,9 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
       "field_mappings": {
         "label": "project"
       },
+      "required_fields_on_save": [
+        "project"
+      ],
       "expected_child_types": [
         {
           "single": false,
@@ -532,6 +535,9 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
       "field_mappings": {
         "label": "siteOrCruiseName"
       },
+      "required_fields_on_save": [
+        "siteOrCruiseName"
+      ],
       "expected_child_types": [
         {
           "single": false,
@@ -551,6 +557,9 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
       "field_mappings": {
         "label": "dataCollectionName"
       },
+      "required_fields_on_save": [
+        "dataCollectionName"
+      ],
       "expected_child_types": []
     }'::jsonb
 )
