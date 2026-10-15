@@ -120,7 +120,7 @@ SELECT $json$
       }
     }
   },
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "field_mappings": {
       "type": "object",
@@ -144,6 +144,12 @@ SELECT $json$
         "post": {
           "$ref": "#/$defs/request"
         }
+      }
+    },
+    "required_fields_on_save": {
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     },
     "expected_child_types": {
