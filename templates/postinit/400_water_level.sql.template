@@ -2096,6 +2096,20 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.water_level_object_type_data()
+RETURNS jsonb AS $$
+BEGIN
+    RETURN '{
+      "required_fields_on_save": [
+        "platform_name"
+      ],
+      "field_mappings": {
+        "label": "platform_name"
+      }
+    }'::jsonb;
+END;
+$$ LANGUAGE plpgsql;
+
 
 -- Insert the Water Level object_type (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.object_type (
@@ -2103,13 +2117,15 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
     label,
     slug,
     category,
-    description
+    description,
+    data
 ) VALUES (
     'system',
     'Water Level',
     'water_level',
     'document'::${ADDB_SCHEMA}.object_category,
-    'Water level observations and measurements'
+    'Water level observations and measurements',
+    ${ADDB_SCHEMA}.water_level_object_type_data()
 )
 ON CONFLICT (slug) DO NOTHING;
 

@@ -8,6 +8,10 @@ CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_object_type_data()
 RETURNS jsonb AS $$
 BEGIN
     RETURN '{
+      "required_fields_on_save": [
+        "id",
+        "title"
+      ],
       "expected_child_types": [
         {
           "single": false,
