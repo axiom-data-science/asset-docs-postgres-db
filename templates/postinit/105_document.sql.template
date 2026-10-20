@@ -349,6 +349,21 @@ BEGIN
             );
     END IF;
 
+    -- If we've reached this point then we plan to either insert or update a
+    -- record. In which case, we should emit a Postgres NOTIFY event for any
+    -- potential listeners.
+    PERFORM pg_notify(
+        CAST('asset_doc_insert_or_update' AS text),
+        (
+            ( row_to_json(NEW)::jsonb )
+            ||
+            jsonb_build_object(
+                'TG_OP', TG_OP,
+                'TG_NAME', TG_NAME
+            )
+        )::text
+    );
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
