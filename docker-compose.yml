@@ -98,7 +98,6 @@ services:
       PGRST_DB_AGGREGATES_ENABLED: "true"
       # Helper function to maintain the 'person' table.
       PGRST_DB_PRE_REQUEST: "asset_docs_private.upsert_person"
-
     ports:
       - "3345:3000"
     depends_on:
@@ -107,6 +106,25 @@ services:
         restart: true
       postinit:
         condition: service_completed_successfully
+        restart: true
+
+  listener:
+    image: "asset-docs-postgres-db:latest"
+    init: true
+    build:
+      context:    .
+      dockerfile: Dockerfile
+    environment:
+      - PGHOST=db
+      - PGDATABASE=${ADDB_DB_NAME}
+      - PGUSER=${ADDB_READ_USER}
+      - PGPASSWORD=${ADDB_READ_USER_PASSWORD}
+    # Listen on a known channel and then poll the server for events
+    command: >
+      bash -c '(echo "LISTEN asset_doc_insert_or_update;"; while true; do echo ";"; sleep 1; done) | psql'
+    depends_on:
+      db:
+        condition: service_healthy
         restart: true
 
   locust:
