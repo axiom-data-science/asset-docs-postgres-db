@@ -18,3 +18,129 @@ CREATE VIEW ${ADDB_SCHEMA}.document_acdd_vw AS (
     -- WHERE
     --     d.type = 'water_level'
 );
+
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_acdd_verbose_vw CASCADE;
+
+CREATE VIEW ${ADDB_SCHEMA}.document_acdd_verbose_vw AS
+WITH schemas AS (
+    SELECT
+        ${ADDB_SCHEMA}.modl_object_schema_json_schema() AS dataset_schema,
+        ${ADDB_SCHEMA}.modl_variable_metadata_object_schema_json_schema() AS variable_schema
+),
+datasets AS (
+    SELECT
+        d.uuid,
+        d.slug,
+        d.data,
+        schemas.dataset_schema,
+        schemas.variable_schema
+    FROM
+        ${ADDB_SCHEMA}.document d
+        JOIN ${ADDB_SCHEMA}.object_type ot
+            ON ot.uuid = d.object_type_uuid
+        CROSS JOIN schemas
+    WHERE
+        ot.slug = 'modl'
+)
+SELECT
+    d.uuid,
+    d.slug,
+    d.data->>'id' AS dataset_id,
+    jsonb_build_object(
+        'attributes',
+        dataset_attributes.attributes,
+        'variables',
+        variable_metadata.variables
+    ) AS nco_json
+FROM
+    datasets d
+    CROSS JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(
+                    CASE attribute.key
+                        WHEN 'infoURL' THEN 'infoUrl'
+                        WHEN 'creator_URL' THEN 'creator_url'
+                        ELSE attribute.key
+                    END,
+                    attribute.value
+                ),
+                '{}'::jsonb
+            ) AS attributes
+        FROM
+            jsonb_each(d.data) AS attribute(key, value)
+            JOIN jsonb_each(d.dataset_schema->'properties') AS property(key, value)
+                ON property.key = attribute.key
+        WHERE
+            property.value->>'type' IN ('string', 'number', 'integer', 'boolean')
+    ) dataset_attributes
+    LEFT JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(
+                    variable.variable_name,
+                    jsonb_build_object('attributes', variable.attributes)
+                ),
+                '{}'::jsonb
+            ) AS variables
+        FROM (
+            SELECT
+                variable_metadata.value->>'variable_name' AS variable_name,
+                (
+                    SELECT
+                        COALESCE(
+                            jsonb_object_agg(
+                                metadata_attribute.key,
+                                metadata_attribute.value
+                            ),
+                            '{}'::jsonb
+                        )
+                    FROM
+                        jsonb_each(
+                            CASE
+                                WHEN jsonb_typeof(variable_metadata.value) = 'object'
+                                    THEN variable_metadata.value
+                                ELSE '{}'::jsonb
+                            END
+                        ) AS metadata_attribute(key, value)
+                        JOIN jsonb_each(
+                            d.variable_schema->'properties'->'variables'
+                                ->'additionalProperties'->'properties'
+                        ) AS attribute_schema(key, value)
+                            ON attribute_schema.key = metadata_attribute.key
+                    WHERE
+                        metadata_attribute.key <> 'variable_name'
+                        AND (
+                            attribute_schema.value->>'type' IN (
+                                'string', 'number', 'integer', 'boolean'
+                            )
+                            OR (
+                                attribute_schema.value->>'type' = 'array'
+                                AND attribute_schema.value->'items'->>'type' = 'number'
+                            )
+                        )
+                ) AS attributes
+            FROM
+                ${ADDB_SCHEMA}.relationship r
+                JOIN ${ADDB_SCHEMA}.predicate p
+                    ON p.uuid = r.predicate_uuid
+                JOIN ${ADDB_SCHEMA}.document child
+                    ON child.uuid = r.from_document_uuid
+                JOIN ${ADDB_SCHEMA}.object_type child_type
+                    ON child_type.uuid = child.object_type_uuid
+                CROSS JOIN LATERAL jsonb_each(
+                    CASE
+                        WHEN jsonb_typeof(child.data->'variables') = 'object'
+                            THEN child.data->'variables'
+                        ELSE '{}'::jsonb
+                    END
+                ) AS variable_metadata(key, value)
+            WHERE
+                r.to_document_uuid = d.uuid
+                AND p.predicate = 'has_parent'
+                AND child_type.slug = 'modl_variable_metadata'
+        ) variable
+        WHERE
+            variable.variable_name IS NOT NULL
+            AND variable.variable_name <> ''
+    ) variable_metadata ON TRUE;
