@@ -837,3 +837,318 @@ VALUES
     )
 ON CONFLICT (from_document_uuid, to_document_uuid, predicate_uuid) DO UPDATE SET
     data = EXCLUDED.data;
+
+INSERT INTO ${ADDB_SCHEMA}.document (
+    uuid,
+    owner_sub,
+    published,
+    data,
+    attrs,
+    label,
+    description,
+    comments,
+    object_type_uuid,
+    slug
+)
+VALUES
+    (
+        '20000000-0000-0000-0000-000000000201'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "id": "mock-modl-demo",
+            "title": "Mock MODL MetOcean Dataset",
+            "platform_name": "Demo Buoy",
+            "project": "ADDB Mock Data",
+            "summary": "Example wave and water temperature observations from a demonstration buoy."
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock MODL MetOcean Dataset',
+        'Example MODL dataset metadata.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl' LIMIT 1),
+        'mock-modl-demo'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000202'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "station": "mock-hohonu-station",
+            "hohonu_id": "mock-001",
+            "start_date": "2024-01-01",
+            "latitude": 41.49,
+            "longitude": -71.31
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Hohonu Station',
+        'Example Hohonu collection configuration.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl_collection_hohonu' LIMIT 1),
+        'mock-hohonu-station'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000203'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "dataset_id": "mock-modl-demo",
+            "variables": {
+                "sea_water_temperature": {
+                    "variable_name": "sea_water_temperature",
+                    "standard_name": "sea_water_temperature",
+                    "long_name": "Sea Water Temperature",
+                    "units": "degree_C"
+                },
+                "time": {
+                    "variable_name": "time",
+                    "axis": "T",
+                    "standard_name": "time",
+                    "units": "UTC"
+                }
+            }
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock MODL Variable Metadata',
+        'Example ERDDAP variable metadata.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl_variable_metadata' LIMIT 1),
+        'mock-modl-variable-metadata'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000204'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "station": "mock-s3-station",
+            "start_date": "2024-01-01",
+            "reader": {"sep": ","},
+            "file_pattern": {"day_pattern": "mock_{partition_date:%Y%m%d}.csv"},
+            "s3_source": {"bucket": "addb-mock-data", "prefix": "timeseries/"},
+            "latitude": 41.49,
+            "longitude": -71.31,
+            "source_time_var": "timestamp",
+            "variable_mappings": [
+                {"source": "temp_c", "output": "sea_water_temperature"}
+            ]
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock S3 Timeseries Station',
+        'Example S3 timeseries collection configuration.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl_collection_s3timeseries' LIMIT 1),
+        'mock-s3-timeseries-station'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000205'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "platform_name": "Mock Water Level Station",
+            "latitude": 41.49,
+            "longitude": -71.31,
+            "prepared-by": "ADDB Mock Data",
+            "creator": {
+                "name": "Example Coastal Lab",
+                "country": "USA",
+                "email": "data@example.org",
+                "institution": "Example Coastal Lab",
+                "sector": "academic",
+                "url": "https://example.org"
+            },
+            "water-body-setting": "Ocean coastline",
+            "approximate-position": "Demonstration station near Newport, Rhode Island.",
+            "record-start-date": "2024-01-01",
+            "record-end-date": "2024-12-31",
+            "computation-tool": "Manual",
+            "computation-method": "TBYT",
+            "datum-type": "Modified Procedure",
+            "computation-date": "2025-01-15",
+            "computed-by": "Example Coastal Lab",
+            "station-datum": "Local benchmark at the demonstration station.",
+            "navd88-m": "0.42",
+            "nad83-m": "3.42",
+            "mhhw-m": "1.18",
+            "mhw-m": "0.96",
+            "mlw-m": "0.14",
+            "mllw-m": "0.02",
+            "msl-m": "0.57"
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Water Level Station',
+        'Example water-level station metadata.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'water_level' LIMIT 1),
+        'mock-water-level-station'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000206'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "project": "Mock Passive Acoustic Survey",
+            "dataSubmitter": "ADDB Mock Data",
+            "relatedProjects": ["ADDB Mock Data"],
+            "contributor": [
+                {"role": "scientist", "name": "Example Coastal Lab", "email": "data@example.org"}
+            ]
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Passive Acoustic Survey',
+        'Example PAM project.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_project' LIMIT 1),
+        'mock-pam-project'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000207'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "siteOrCruiseName": "Mock Newport Harbor",
+            "alternateSiteName": "Newport Demo Site",
+            "platform": "Fixed mooring",
+            "locationDetail": {
+                "type": "stationary_marine",
+                "seaArea": "Narragansett Bay",
+                "deploymentLocation": {
+                    "latitude": 41.49,
+                    "longitude": -71.31,
+                    "seaFloorDepth": -12,
+                    "instrumentDepth": -10
+                }
+            }
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Newport Harbor',
+        'Example PAM site.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_site' LIMIT 1),
+        'mock-pam-site'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000208'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "dataCollectionName": "mock-newport-acoustics-2024",
+            "averageFileLengthMinutes": 10,
+            "deploymentTitle": "Mock Newport Harbor Acoustic Recordings",
+            "deploymentDescription": "Example passive acoustic recordings collected for local template testing.",
+            "deploymentId": "mock-deployment-01",
+            "instrument": "Example hydrophone",
+            "instrumentId": "mock-hydrophone-01",
+            "sensitivityFlatValue": -165,
+            "calibrationState": "Factory Calibrated",
+            "sourceURI": "https://example.org/mock/pam/audio/",
+            "deploymentTime": "2024-06-01T12:00:00Z",
+            "recoveryTime": "2024-06-15T12:00:00Z",
+            "audioStartTime": "2024-06-01T12:00:00Z",
+            "audioEndTime": "2024-06-15T12:00:00Z",
+            "recordings": [
+                {
+                    "channels": [
+                        {
+                            "startTime": "2024-06-01T12:00:00Z",
+                            "endTime": "2024-06-15T12:00:00Z",
+                            "sampleRates": [
+                                {
+                                    "startTime": "2024-06-01T12:00:00Z",
+                                    "endTime": "2024-06-15T12:00:00Z",
+                                    "sampleRate": 48000,
+                                    "sampleBits": 24
+                                }
+                            ],
+                            "dutyCycles": [
+                                {
+                                    "startTime": "2024-06-01T12:00:00Z",
+                                    "endTime": "2024-06-15T12:00:00Z",
+                                    "duration": 600,
+                                    "interval": 600
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "analyses": [
+                {
+                    "qualityAnalyst": "ADDB Mock Data",
+                    "qualityAssessmentDescription": "Example quality assessment.",
+                    "qualityEntries": [
+                        {
+                            "startTime": "2024-06-01T12:00:00Z",
+                            "endTime": "2024-06-15T12:00:00Z",
+                            "minFrequency": 20,
+                            "maxFrequency": 20000,
+                            "qualityLevel": "good",
+                            "channelNumbers": [1],
+                            "comments": "Example quality entry."
+                        }
+                    ]
+                }
+            ]
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Newport Harbor Acoustic Recordings',
+        'Example PAM deployment and recording metadata.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'pam_deployment' LIMIT 1),
+        'mock-pam-deployment'
+    )
+ON CONFLICT (uuid) DO UPDATE SET
+    owner_sub = EXCLUDED.owner_sub,
+    published = EXCLUDED.published,
+    data = EXCLUDED.data,
+    attrs = EXCLUDED.attrs,
+    label = EXCLUDED.label,
+    description = EXCLUDED.description,
+    comments = EXCLUDED.comments,
+    object_type_uuid = EXCLUDED.object_type_uuid,
+    slug = EXCLUDED.slug;
+
+INSERT INTO ${ADDB_SCHEMA}.relationship (
+    uuid,
+    from_document_uuid,
+    to_document_uuid,
+    predicate_uuid,
+    data
+)
+VALUES
+    (
+        '40000000-0000-0000-0000-000000000201'::uuid,
+        '20000000-0000-0000-0000-000000000202'::uuid,
+        '20000000-0000-0000-0000-000000000201'::uuid,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.predicate WHERE predicate = 'has_parent'),
+        '{"seed_group":"template_examples"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000202'::uuid,
+        '20000000-0000-0000-0000-000000000203'::uuid,
+        '20000000-0000-0000-0000-000000000201'::uuid,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.predicate WHERE predicate = 'has_parent'),
+        '{"seed_group":"template_examples"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000203'::uuid,
+        '20000000-0000-0000-0000-000000000204'::uuid,
+        '20000000-0000-0000-0000-000000000201'::uuid,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.predicate WHERE predicate = 'has_parent'),
+        '{"seed_group":"template_examples"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000204'::uuid,
+        '20000000-0000-0000-0000-000000000207'::uuid,
+        '20000000-0000-0000-0000-000000000206'::uuid,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.predicate WHERE predicate = 'has_parent'),
+        '{"seed_group":"template_examples"}'::jsonb
+    ),
+    (
+        '40000000-0000-0000-0000-000000000205'::uuid,
+        '20000000-0000-0000-0000-000000000208'::uuid,
+        '20000000-0000-0000-0000-000000000207'::uuid,
+        (SELECT uuid FROM ${ADDB_SCHEMA}.predicate WHERE predicate = 'has_parent'),
+        '{"seed_group":"template_examples"}'::jsonb
+    )
+ON CONFLICT (from_document_uuid, to_document_uuid, predicate_uuid) DO UPDATE SET
+    data = EXCLUDED.data;
