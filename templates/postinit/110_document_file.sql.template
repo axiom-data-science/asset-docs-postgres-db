@@ -70,7 +70,7 @@ BEGIN
     END IF;
 
     document_file_data := jsonb_build_object(
-        '$ref',
+        'external_file_reference',
         '//rpc/get_document_file?uuid=' || temp_uuid
     );
 
@@ -227,13 +227,13 @@ VALUES
             '   "$schema":"https://json-schema.org/draft/2020-12/schema",'
             '   "type":"object",'
             '   "properties": {'
-            '       "$ref": {'
+            '       "external_file_reference": {'
             '           "type": "string",'
             '           "format": "uri"'
             '       }'
             '   },'
             '   "additionalProperties": false,'
-            '   "required": ["$ref"]'
+            '   "required": ["external_reference"]'
             '}'
         )::jsonb
     )

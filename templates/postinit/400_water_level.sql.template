@@ -427,7 +427,10 @@ BEGIN
       "description": "Add link to colocated dataset (ERDDAP link, portal link, if available)"
     },
     "benchmarks-photo": {
-      "type": "string",
+      "type": "array",
+      "items":{
+        "type": "string"
+      },
       "title": "Photo of bench mark(s)",
       "description": "Suggested 4 minimum photos include: Bench mark face clearly showing stamping, setting (generally taken from chest height) and 2 directional photos. Ideally, provide photos of all 4 directions to help find the mark on future visits and/or to help validate suitability for things such as GPS/GNSS (things that could obstruct a signal: tree, fence, building, etc)"
     },
