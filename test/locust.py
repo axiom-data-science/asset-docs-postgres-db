@@ -81,7 +81,7 @@ class LocustUser(HttpUser):
             json={
                 "label": 'testing testing',
                 "data": {
-                    "$ref": "http://homestarrunner.com"
+                    "external_file_reference": "http://homestarrunner.com"
                 },
                 # system type... document file?
                 "object_type_uuid": default_object_type['uuid'],
@@ -144,6 +144,14 @@ class LocustUser(HttpUser):
         )
 
         get_resp.raise_for_status()
+
+        content_disposition = get_resp.headers.get( 'content-disposition', False )
+
+        assert content_disposition, \
+            "Must have a content-disposition in response header"
+
+        assert f'filename="{single_pixel_path.name}"' in content_disposition, \
+            "Must have expected filename in content-disposition"
 
     # @task
     # def test_bulk_upsert(self):

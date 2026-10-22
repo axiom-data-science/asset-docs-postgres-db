@@ -145,8 +145,9 @@ DECLARE
     SELECT format(
       '[{"Content-Type": "%s"},'
        '{"Content-Length": "%s"},'
+       '{"Content-Disposition": "inline; filename=\"%s\""},'
        '{"Cache-Control": "max-age=259200"}]'
-      , df.mime_type, df.size_bytes )
+      , df.mime_type, df.size_bytes, COALESCE( df.name, 'unknown.bin' ) )
     FROM
         ${ADDB_SCHEMA}.document_file df
     WHERE
