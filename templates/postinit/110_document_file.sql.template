@@ -146,7 +146,7 @@ DECLARE
       '[{"Content-Type": "%s"},'
        '{"Content-Length": "%s"},'
        '{"Content-Disposition": "inline; filename=\"%s\""},'
-       '{"Access-Control-Expose-Headers": "Content-Disposition"},'
+       '{"Access-Control-Expose-Headers": "Content-Encoding, Content-Location, Content-Range, Content-Type, Date, Location, Server, Transfer-Encoding, Range-Unit, Content-Disposition"},'
        '{"Cache-Control": "max-age=259200"}]'
       , df.mime_type, df.size_bytes, COALESCE( df.name, 'unknown.bin' ) )
     FROM
