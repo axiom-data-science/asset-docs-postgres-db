@@ -856,8 +856,6 @@ VALUES
         'seed-superadmin',
         true,
         '{
-            "id": "mock-modl-demo",
-            "title": "Mock MODL MetOcean Dataset",
             "platform_name": "Demo Buoy",
             "project": "ADDB Mock Data",
             "summary": "Example wave and water temperature observations from a demonstration buoy."
@@ -940,6 +938,120 @@ VALUES
         'mock-s3-timeseries-station'
     ),
     (
+        '20000000-0000-0000-0000-000000000210'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "infoURL": "https://example.org/datasets/narragansett-bay",
+            "license": "These mock data may be used and redistributed for free with attribution. They are not intended for legal, navigational, or operational use.",
+            "summary": "Example time-series observations of temperature, salinity, and currents from a demonstration mooring in Narragansett Bay.",
+            "acknowledgement": "Demonstration metadata seeded for local Asset Docs testing.",
+            "comment": "Fictional station and values for testing only.",
+            "creator": {
+                "name": "Example Marine Science Laboratory",
+                "address": "10 Harbor Way, Newport, RI 02840",
+                "city": "Newport",
+                "state": "Rhode Island",
+                "postal_code": "02840",
+                "country": "USA",
+                "email": "creator@example.org",
+                "institution": "Example Marine Science Laboratory",
+                "sector": "academic",
+                "url": "https://example.org/marine-lab"
+            },
+            "contributor": [
+                {
+                    "role": "funder",
+                    "name": "Example Coastal Research Fund",
+                    "email": "funding@example.org",
+                    "url": "https://example.org/coastal-fund",
+                    "affiliation": "Example Coastal Research Fund"
+                },
+                {
+                    "role": "processor",
+                    "name": "Example Marine Data Center",
+                    "email": "processing@example.org",
+                    "url": "https://example.org/marine-data",
+                    "affiliation": "Example Marine Data Center"
+                }
+            ],
+            "platform_name": "Narragansett Bay Demonstration Mooring",
+            "processing_level": "Quality controlled demonstration data",
+            "project": "Narragansett Bay Mock Observations",
+            "publisher_country": "USA",
+            "publisher_email": "publisher@example.org",
+            "publisher_institution": "Example Regional Ocean Observing Association",
+            "publisher_name": "Example Regional Ocean Observing Association",
+            "publisher_phone": "+1-401-555-0100",
+            "publisher_type": "institution",
+            "publisher_url": "https://example.org/regional-observing",
+            "instrument": "Example CTD, acoustic Doppler current profiler"
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Narragansett Bay Demonstration Mooring Time Series',
+        'MODL sample with ACDD globals and supported scalar metadata populated.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl' LIMIT 1),
+        'mock-modl-narragansett-bay'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000211'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "infoURL": "https://example.org/datasets/gulf-of-maine",
+            "license": "These mock data may be used and redistributed for free with attribution. They are not intended for legal, navigational, or operational use.",
+            "summary": "Example time-series observations of water temperature and wave conditions from a demonstration buoy in the Gulf of Maine.",
+            "acknowledgement": "Demonstration metadata seeded for local Asset Docs testing.",
+            "comment": "Fictional station and values for testing only.",
+            "creator": {
+                "name": "Example Ocean Observing Institute",
+                "address": "25 Research Pier, Portland, ME 04101",
+                "city": "Portland",
+                "state": "Maine",
+                "postal_code": "04101",
+                "country": "USA",
+                "email": "creator@example.org",
+                "institution": "Example Ocean Observing Institute",
+                "sector": "nonprofit",
+                "url": "https://example.org/ocean-institute"
+            },
+            "contributor": [
+                {
+                    "role": "funder",
+                    "name": "Example Marine Research Partnership",
+                    "email": "funding@example.org",
+                    "url": "https://example.org/research-partnership",
+                    "affiliation": "Example Marine Research Partnership"
+                },
+                {
+                    "role": "processor",
+                    "name": "Example Ocean Observing Institute",
+                    "email": "processing@example.org",
+                    "url": "https://example.org/ocean-institute",
+                    "affiliation": "Example Ocean Observing Institute"
+                }
+            ],
+            "platform_name": "Gulf of Maine Demonstration Buoy",
+            "processing_level": "Quality controlled demonstration data",
+            "project": "Gulf of Maine Mock Observations",
+            "publisher_country": "USA",
+            "publisher_email": "data@example.org",
+            "publisher_institution": "Example Ocean Observing Institute",
+            "publisher_name": "Example Ocean Observing Institute",
+            "publisher_phone": "+1-207-555-0100",
+            "publisher_type": "institution",
+            "publisher_url": "https://example.org/ocean-institute",
+            "instrument": "Example wave buoy, surface temperature sensor"
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Gulf of Maine Demonstration Buoy Time Series',
+        'MODL sample with ACDD globals and supported scalar metadata populated.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'modl' LIMIT 1),
+        'mock-modl-gulf-of-maine'
+    ),
+    (
         '20000000-0000-0000-0000-000000000205'::uuid,
         'seed-superadmin',
         true,
@@ -980,6 +1092,176 @@ VALUES
         '',
         (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'water_level' LIMIT 1),
         'mock-water-level-station'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000209'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "platform_name": "Mock Block Island Water Level Station",
+            "latitude": 41.17,
+            "longitude": -71.58,
+            "prepared-by": "ADDB Mock Data",
+            "creator": {
+                "name": "Example Coastal Engineering Lab",
+                "country": "USA",
+                "email": "water-level@example.org",
+                "institution": "Example Coastal Engineering Lab",
+                "sector": "academic",
+                "url": "https://example.org/coastal-engineering"
+            },
+            "contributor": [
+                {
+                    "role": "publisher",
+                    "name": "Example Regional Ocean Observing Association",
+                    "email": "publisher@example.org",
+                    "url": "https://example.org/observing",
+                    "affiliation": "Example Regional Ocean Observing Association"
+                },
+                {
+                    "role": "publisher",
+                    "name": "Example Coastal Data Archive",
+                    "email": "archive@example.org",
+                    "url": "https://example.org/archive",
+                    "affiliation": "Example Coastal Data Archive"
+                },
+                {
+                    "role": "processor",
+                    "name": "Example Coastal Engineering Lab",
+                    "email": "processing@example.org",
+                    "url": "https://example.org/coastal-engineering",
+                    "affiliation": "Example Coastal Engineering Lab"
+                },
+                {
+                    "role": "processor",
+                    "name": "Example Ocean Data Services",
+                    "email": "data-services@example.org",
+                    "url": "https://example.org/data-services",
+                    "affiliation": "Example Ocean Data Services"
+                }
+            ],
+            "water-body-setting": "Ocean coastline",
+            "approximate-position": "Demonstration station near Block Island, Rhode Island.",
+            "record-start-date": "2024-01-01",
+            "record-end-date": "2024-12-31",
+            "station-datum": "Local benchmark at the demonstration station.",
+            "navd88-m": "0.38",
+            "nad83-m": "3.37",
+            "mhhw-m": "1.12",
+            "mhw-m": "0.91",
+            "mlw-m": "0.13",
+            "mllw-m": "0.01",
+            "msl-m": "0.54"
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Block Island Water Level Station',
+        'Example water-level station with multiple publisher and processor contributors.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'water_level' LIMIT 1),
+        'mock-water-level-block-island'
+    ),
+    (
+        '20000000-0000-0000-0000-000000000212'::uuid,
+        'seed-superadmin',
+        true,
+        '{
+            "platform_name": "Mock Coastal Cove Water Level Station",
+            "platform": "Tide gauge",
+            "latitude": 41.52,
+            "longitude": -71.35,
+            "prepared-by": "ADDB Mock Data",
+            "creator": {
+                "name": "Example Coastal Monitoring Program",
+                "country": "USA",
+                "email": "creator@example.org",
+                "institution": "Example Coastal Monitoring Program",
+                "sector": "academic",
+                "url": "https://example.org/coastal-monitoring"
+            },
+            "contributor": [
+                {
+                    "role": "owner",
+                    "name": "Example Coastal Town",
+                    "email": "owner@example.org",
+                    "url": "https://example.org/town",
+                    "affiliation": "Example Coastal Town"
+                },
+                {
+                    "role": "funder",
+                    "name": "Example Coastal Resilience Fund",
+                    "email": "funding@example.org",
+                    "url": "https://example.org/resilience-fund",
+                    "affiliation": "Example Coastal Resilience Fund"
+                },
+                {
+                    "role": "custodian",
+                    "name": "Example Coastal Monitoring Program",
+                    "email": "custodian@example.org",
+                    "url": "https://example.org/coastal-monitoring",
+                    "affiliation": "Example Coastal Monitoring Program"
+                },
+                {
+                    "role": "community_poc",
+                    "name": "Example Harbor Coordinator",
+                    "email": "harbor@example.org",
+                    "affiliation": "Example Coastal Town"
+                },
+                {
+                    "role": "publisher",
+                    "name": "Example Regional Observing Association",
+                    "email": "publisher-one@example.org",
+                    "url": "https://example.org/regional-observing",
+                    "affiliation": "Example Regional Observing Association"
+                },
+                {
+                    "role": "publisher",
+                    "name": "Example Coastal Data Archive",
+                    "email": "publisher-two@example.org",
+                    "url": "https://example.org/data-archive",
+                    "affiliation": "Example Coastal Data Archive"
+                },
+                {
+                    "role": "publisher",
+                    "name": "Example Town Open Data Office",
+                    "email": "publisher-three@example.org",
+                    "url": "https://example.org/open-data",
+                    "affiliation": "Example Coastal Town"
+                },
+                {
+                    "role": "processor",
+                    "name": "Example Ocean Data Services",
+                    "email": "processor@example.org",
+                    "url": "https://example.org/ocean-data",
+                    "affiliation": "Example Ocean Data Services"
+                },
+                {
+                    "role": "distributor",
+                    "name": "Example Coastal Data Portal",
+                    "email": "distribution@example.org",
+                    "url": "https://example.org/portal",
+                    "affiliation": "Example Coastal Data Portal"
+                }
+            ],
+            "water-body-setting": "Inlet",
+            "approximate-position": "Coastal cove near Narragansett Bay, Rhode Island.",
+            "record-start-date": "2023-01-01",
+            "record-end-date": "2023-12-31",
+            "station-datum": "Mock benchmark CC-01 at the coastal cove gauge.",
+            "station-datum-establishment-date": "2022-10-15",
+            "navd88-m": "0.31",
+            "nad83-m": "3.28",
+            "mhhw-m": "1.09",
+            "mhw-m": "0.88",
+            "mlw-m": "0.12",
+            "mllw-m": "0.01",
+            "msl-m": "0.51"
+        }'::jsonb,
+        '{"seed_group":"template_examples"}'::jsonb,
+        'Mock Coastal Cove Water Level Station',
+        'Water-level sample with all contributor roles and three publishers.',
+        '',
+        (SELECT uuid FROM ${ADDB_SCHEMA}.object_type WHERE slug = 'water_level' LIMIT 1),
+        'mock-water-level-coastal-cove'
     ),
     (
         '20000000-0000-0000-0000-000000000206'::uuid,
