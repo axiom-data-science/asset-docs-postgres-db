@@ -234,7 +234,7 @@ VALUES
             '       }'
             '   },'
             '   "additionalProperties": false,'
-            '   "required": ["external_reference"]'
+            '   "required": ["external_file_reference"]'
             '}'
         )::jsonb
     )
