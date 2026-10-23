@@ -9,8 +9,7 @@ RETURNS jsonb AS $$
 BEGIN
     RETURN '{
       "required_fields_on_save": [
-        "id",
-        "title"
+        "platform_name"
       ],
       "expected_child_types": [
         {
@@ -22,8 +21,7 @@ BEGIN
         }
       ],
       "field_mappings": {
-        "slug": "id",
-        "label": "title"
+        "label": "platform_name"
       }
     }'::jsonb;
 END;
@@ -37,11 +35,6 @@ BEGIN
       "title": "MODL Dataset Metadata Schema",
       "type": "object",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Unique dataset identifier in ERDDAP e.g., Dominion Wave Buoy, Timeseries Data",
-          "examples": ["South Fork Wind SFW01, Timeseries Data"]
-        },
         "acknowledgement": {
           "type": "string",
           "description": "Acknowlegment of financial supporting entities or award numbers",
@@ -54,84 +47,158 @@ BEGIN
           "description": "Used to describe the buoy/platform and contributor",
           "examples": ["South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"]
         },
-        "contributor_name": {
-          "type": "string",
-          "description": "Contributor refers to individuals or institutions that contributed to creation of the data. We use for platform deployment/data provider entity",
-          "examples": ["Woods Hole Group"]
-        },
-        "contributor_address": {
-          "type": "string",
-          "description": "physical address or city/state/country",
-          "examples": ["107 Waterhouse Rd, Bourne, MA 02532"]
-        },
-        "contributor_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "Contributor website",
-          "examples": ["https://www.woodsholegroup.com/"]
-        },
-        "contributor_email": {
-          "type": "string",
-          "format": "email",
-          "description": "Creator primary contact",
-          "examples": ["dwalsh@woodsholegroup.com"]
-        },
-        "creator_country": {
-          "type": "string",
-          "description": "Creator refers to owner/operator of platform, used here for owner/operator of deployed platform",
-          "examples": ["USA"]
-        },
-        "creator_name": {
-          "type": "string",
-          "description": "Name of creator entity e.g., Coastal Virginia Offshore Wind or Dominion Energy",
-          "examples": ["South Fork Wind"]
-        },
-        "creator_address": {
-          "type": "string",
-          "description": "mailing address",
-          "examples": ["524 Montauk Hwy, Amagansett, NY 11930"]
-        },
-        "creator_state": {
-          "type": "string",
-          "description": "state of operation",
-          "examples": ["New York"]
-        },
-        "creator_URL": {
-          "type": "string",
-          "format": "uri",
-          "description": "Creator website",
-          "examples": ["https://southforkwind.com"]
-        },
-        "creator_email": {
-          "type": "string",
-          "format": "email",
-          "description": "primary contact",
-          "examples": ["info@southforkwind.com"]
-        },
-        "institution": {
-          "type": "string",
-          "description": "Institution name",
-          "examples": [
-            "South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
-          ]
-        },
-        "creator_sector": {
-          "type": "string",
-          "description": "IOOS classifier for sector",
-          "enum": ["gov_state", "nonprofit", "industry", "academic", "gov_federal", "tribal"],
-          "examples": ["industry"]
+        "contributor": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                "url": {
+                    "type": "string",
+                    "title": "URL"
+                },
+                "name": {
+                    "type": "string",
+                    "title": "Name"
+                },
+                "role": {
+                    "oneOf": [
+                    {
+                        "const": "owner",
+                        "title": "Owner",
+                        "description": "Party that owns the resource.\n - ***AOOS***"
+                    },
+                    {
+                        "const": "funder",
+                        "title": "Funder",
+                        "description": "Party providing monetary support for the resource.\n - ***AOOS***\n - ***USGS***"
+                    },
+                    {
+                        "const": "custodian",
+                        "title": "Custodian",
+                        "description": "Party that accepts accountability and responsibility for the data, and ensures appropriate care and maintenance of the resource.\n - ***JOA Surveys** (the organization that is servicing the station)*"
+                    },
+                    {
+                        "const": "community_poc",
+                        "title": "Community Point of Contact",
+                        "description": "Name of community contact, if applicable. This information is **not reported to ERDDAP**. It is only recorded for RA project tracking purposes.\n - ***Person ABC** (the POC who is aware of the station or provides access to the site)*"
+                    },
+                    {
+                        "const": "publisher",
+                        "title": "Data Publisher",
+                        "description": "Party who published the resource.\n - ***JOA Surveys** (The organization that shares the data via API or other access point)*"
+                    },
+                    {
+                        "const": "processor",
+                        "title": "Data Processor",
+                        "description": "Party that has processed the data in a manner such that the resource has been modified.\n - ***Tetra Tech***"
+                    },
+                    {
+                        "const": "distributor",
+                        "title": "Distributor",
+                        "description": "Party who distributes the resource. Example, Hohonu, Divirod, etc. These distributors provide a packaged instrument, not a single sensor.\n - ***Hohonu***"
+                    }
+                    ],
+                    "type": "string",
+                    "title": "Contributor role"
+                },
+                "email": {
+                    "type": "string",
+                    "title": "Email",
+                    "format": "email"
+                },
+                "phone": {
+                    "type": "string",
+                    "title": "Telephone (primary)",
+                    "format": "phone"
+                },
+                "affiliation": {
+                    "type": "string",
+                    "title": "Organization"
+                }
+                }
+            }
+            },
+        "creator": {
+            "type": "object",
+            "properties": {
+                "url": {
+                "type": "string",
+                "title": "Creator url",
+                "description": "URL of the person or organization that collected the data."
+                },
+                "city": {
+                "type": "string",
+                "title": "Creator city",
+                "description": "City of the person or organization that collected the data."
+                },
+                "name": {
+                "type": "string",
+                "title": "Creator Name",
+                "description": "Name of the person that collected the data. "
+                },
+                "email": {
+                "type": "string",
+                "title": "Creator email",
+                "description": "Email address of the person or organization that collected the data."
+                },
+                "phone": {
+                "type": "string",
+                "title": "Creator phone",
+                "description": "The phone number of the person or group that collected the data. "
+                },
+                "state": {
+                "type": "string",
+                "title": "Creator state",
+                "description": "State of the person or organization that collected the data."
+                },
+                "sector": {
+                "enum": [
+                    "ioos_ra",
+                    "citizen",
+                    "municipal government",
+                    "academic",
+                    "industry",
+                    "gov_federal",
+                    "gov_state",
+                    "nonprofit",
+                    "tribal",
+                    "community",
+                    "international",
+                    "other"
+                ],
+                "type": "string",
+                "title": "Creator sector",
+                "description": "The sector of the organization that collected the data. If you are submitting for an IOOS Regional Association (RA), select ''ioos_ra''"
+                },
+                "address": {
+                "type": "string",
+                "title": "Creator address",
+                "description": "Street address of the person or organization that collected the data."
+                },
+                "country": {
+                "type": "string",
+                "title": "Creator country",
+                "description": "Country of the person or organization that collected the data."
+                },
+                "institution": {
+                "type": "string",
+                "title": "Creator institution",
+                "description": "Name of the organization that collected the data."
+                },
+                "postal_code": {
+                "type": "string",
+                "title": "Creator postal code",
+                "description": "The postal code of the person or organization that collected the data."
+                }
+            }
         },
         "geometry": {
           "type": "object"
         },
-        "id": {
-          "type": "string",
-          "description": "Unique Platform/Station ID",
-          "examples": ["SFW01"]
-        },
         "infoURL": {
           "type": "string",
           "format": "uri",
+          "title": "Inormation URL",
           "description": "Best website for information about program",
           "examples": ["https://southforkwind.com"]
         },
@@ -194,12 +261,13 @@ BEGIN
         },
         "summary": {
           "type": "string",
+          "title": "Summary",
           "description": "Basic summary of dataset - location, platform, variables collected",
           "examples": [
             "This dataset contains observations to support further understanding of metocean conditions off the coast of New York, Rhode Island and Southeastern Massachusetts. Data is collected from a floating lidar buoy and the dataset includes  measurements of sea temperature (surface and sea floor), current speed, current direction, wave height, wave direction, and wave period, air temperature, atmospheric pressure, relative humidity, visibility, surface wind speed,  surface wind direction, and surface wind gust."
           ]
         },
-        "Instrument": {
+        "instrument": {
           "type": "string",
           "description": "Instruments used, varies by variable-  see DP metadata - use at attribute level as component (with each variable) or global (separate by comma)",
           "examples": [
@@ -207,12 +275,12 @@ BEGIN
           ]
         }
       },
-      "required": ["title", "id"]
+      "required": ["platform_name"]
     }'::jsonb;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_form_form_config()
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}.modl_form_schema_override_config()
 RETURNS jsonb AS $$
 BEGIN
   RETURN '{
@@ -222,232 +290,182 @@ BEGIN
       {
         "id": "basic-info",
         "label": "Basic Information",
+
         "fields": [
           {
-            "id": "title",
-            "type": "text",
-            "label": "Dataset Title",
-            "required": true,
-            "description": "Unique dataset identifier in ERDDAP",
-            "placeholder": "e.g., South Fork Wind SFW01, Timeseries Data"
+            "id":"intro-wrap",
+            "type": "objectWrapper",
+            "layout": "grid2",
+            "label": "",
+            "fields": [
+              {"prop": "platform_name"},
+              {"prop": "project"}
+            ]
           },
-          {
-            "id": "id",
-            "type": "text",
-            "label": "Platform/Station ID",
-            "required": true,
-            "description": "Unique Platform/Station ID",
-            "placeholder": "e.g., SFW01"
-          },
-          {
-            "id": "platform_name",
-            "type": "text",
-            "label": "Platform Name",
-            "description": "If different from dataset title and platform/station ID",
-            "placeholder": "e.g., South Fork Wind"
-          },
-          {
-            "id": "project",
-            "type": "text",
-            "label": "Project",
-            "description": "Name of project",
-            "placeholder": "e.g., South Fork Wind"
-          },
-          {
-            "id": "summary",
-            "type": "long_text",
-            "label": "Summary",
-            "description": "Basic summary of dataset - location, platform, variables collected",
-            "placeholder": "Describe the dataset, location, platform, and variables collected"
-          }
+          {"prop": "summary", "type": "long_text"}
         ],
         "description": "Essential dataset identification"
       },
       {
-        "id": "creator-info",
-        "label": "Creator Information",
+        "id": "creator-page",
+        "label": "Creator",
         "fields": [
           {
-            "id": "creator_name",
-            "type": "text",
-            "label": "Creator Name",
-            "description": "Name of creator entity",
-            "placeholder": "e.g., South Fork Wind"
+            "prop": "creator.name",
+            "label": "Name"
           },
           {
-            "id": "institution",
-            "type": "text",
-            "label": "Institution",
-            "description": "Institution name",
-            "placeholder": "e.g., South Fork Wind - a partnership between Ørsted and Global Infrastructure Partners"
-          },
-          {
-            "id": "creator_address",
-            "type": "text",
-            "label": "Creator Address",
-            "description": "Mailing address",
-            "placeholder": "e.g., 524 Montauk Hwy, Amagansett, NY 11930"
-          },
-          {
-            "id": "creator_state",
-            "type": "text",
-            "label": "Creator State",
-            "description": "State of operation",
-            "placeholder": "e.g., New York"
-          },
-          {
-            "id": "creator_country",
-            "type": "text",
-            "label": "Creator Country",
-            "description": "Creator country",
-            "placeholder": "e.g., USA"
-          },
-          {
-            "id": "creator_email",
-            "type": "text",
-            "label": "Creator Email",
-            "description": "Primary contact email",
-            "placeholder": "e.g., info@southforkwind.com"
-          },
-          {
-            "id": "creator_URL",
-            "type": "text",
-            "label": "Creator Website",
-            "description": "Creator website URL",
-            "placeholder": "e.g., https://southforkwind.com"
-          },
-          {
-            "id": "creator_sector",
-            "type": "select",
-            "label": "Creator Sector",
-            "options": [
+            "id": "creator2",
+            "type": "objectWrapper",
+            "label": "",
+            "fields": [
               {
-                "label": "State Government",
-                "value": "gov_state"
+                "prop": "creator.institution",
+                "label": "Organization",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
               },
               {
-                "label": "Nonprofit",
-                "value": "nonprofit"
-              },
-              {
-                "label": "Industry",
-                "value": "industry"
-              },
-              {
-                "label": "Academic",
-                "value": "academic"
-              },
-              {
-                "label": "Federal Government",
-                "value": "gov_federal"
-              },
-              {
-                "label": "Tribal",
-                "value": "tribal"
+                "prop": "creator.sector",
+                "label": "Sector",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
               }
             ],
-            "description": "IOOS classifier for sector"
+            "layout": "horizontal"
+          },
+          {
+            "prop": "creator.address",
+            "label": "Address",
+            "settings": {
+              "descriptionPresentation": "tooltip"
+            }
+          },
+          {
+            "id": "creator1",
+            "type": "objectWrapper",
+            "label": "",
+            "fields": [
+              {
+                "prop": "creator.city",
+                "label": "City",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              },
+              {
+                "prop": "creator.postal_code",
+                "label": "Postal Code",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              },
+              {
+                "prop": "creator.country",
+                "label": "Country",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                },
+                "defaultValue": "United States"
+              },
+              {
+                "prop": "creator.state",
+                "type": "stateSelector",
+                "label": "State",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              },
+              {
+                "prop": "creator.email",
+                "label": "Email",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              },
+              {
+                "prop": "creator.phone",
+                "label": "Phone",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              },
+              {
+                "prop": "creator.url",
+                "label": "URL",
+                "settings": {
+                  "descriptionPresentation": "tooltip"
+                }
+              }
+            ],
+            "layout": "grid2"
           }
         ],
-        "description": "Owner/operator of platform details"
+        "settings": {
+          "boldDescription": true
+        },
+        "description": "Party responsible for collecting the data and/or creating the resource"
       },
       {
-        "id": "contributor-info",
-        "label": "Contributor Information",
+        "id": "contributors-list",
+        "label": "Contributors List",
         "fields": [
           {
-            "id": "contributor_name",
-            "type": "text",
-            "label": "Contributor Name",
-            "description": "Platform deployment/data provider entity",
-            "placeholder": "e.g., Woods Hole Group"
-          },
-          {
-            "id": "contributor_address",
-            "type": "text",
-            "label": "Contributor Address",
-            "description": "Physical address or city/state/country",
-            "placeholder": "e.g., 107 Waterhouse Rd, Bourne, MA 02532"
-          },
-          {
-            "id": "contributor_email",
-            "type": "text",
-            "label": "Contributor Email",
-            "description": "Contributor primary contact email",
-            "placeholder": "e.g., dwalsh@woodsholegroup.com"
-          },
-          {
-            "id": "contributor_url",
-            "type": "text",
-            "label": "Contributor Website",
-            "description": "Contributor website URL",
-            "placeholder": "e.g., https://www.woodsholegroup.com/"
+            "prop": "contributor",
+            "type": "object",
+            "label": "",
+            "fields": [
+              {
+                "prop": "role",
+                "type": "select",
+                "settings": {
+                  "boldLabel": true,
+                  "showDescriptionForSelected": true
+                }
+              },
+              {
+                "id": "contributor-fields",
+                "type": "objectWrapper",
+                "label": "",
+                "fields": [
+                  {
+                    "prop": "name"
+                  },
+                  {
+                    "prop": "phone"
+                  },
+                  {
+                    "prop": "email"
+                  },
+                  {
+                    "prop": "url"
+                  },
+                  {
+                    "prop": "affiliation"
+                  }
+                ],
+                "layout": "grid3",
+                "settings": {
+                  "className": "bg-transparent px-0 -mt-2"
+                }
+              }
+            ],
+            "multiple": true,
+            "settings": {
+              "className": "bg-slate-100"
+            }
           }
         ],
-        "description": "Platform deployment/data provider entity details"
-      },
-      {
-        "id": "publisher-info",
-        "label": "Publisher Information",
-        "fields": [
-          {
-            "id": "publisher_name",
-            "type": "text",
-            "label": "Publisher Name",
-            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-            "placeholder": "e.g., MARACOOS, NERACOOS"
-          },
-          {
-            "id": "publisher_institution",
-            "type": "text",
-            "label": "Publisher Institution",
-            "description": "Publisher refers to data management at NERACOOS/MARACOOS",
-            "placeholder": "e.g., MARACOOS, NERACOOS"
-          },
-          {
-            "id": "publisher_email",
-            "type": "text",
-            "label": "Publisher Email",
-            "description": "Publisher contact email",
-            "placeholder": "e.g., devops@rpsgroup.com, info@neracoos.org"
-          },
-          {
-            "id": "publisher_phone",
-            "type": "text",
-            "label": "Publisher Phone",
-            "description": "Publisher contact phone",
-            "placeholder": "e.g., (401) 789-6224, (603) 319-1785"
-          },
-          {
-            "id": "publisher_country",
-            "type": "text",
-            "label": "Publisher Country",
-            "description": "Publisher country",
-            "placeholder": "e.g., USA"
-          },
-          {
-            "id": "publisher_url",
-            "type": "text",
-            "label": "Publisher Website",
-            "description": "Publisher website URL",
-            "placeholder": "e.g., https://www.maracoos.org, https://www.neracoos.org"
-          },
-          {
-            "id": "publisher_type",
-            "type": "text",
-            "label": "Publisher Type",
-            "description": "Type of publisher",
-            "placeholder": "e.g., institution"
-          }
-        ],
-        "description": "Data management at NERACOOS/MARACOOS"
+        "description": "All roles are optional to complete. You may enter the same information for multiple roles. For example, you may submit 1 Custodian and 1 Community POC and use the same information for both.\nUse the ''Duplicate'' button to copy information from a role and create a new one.\n- **Owner**: Party that owns the resource\n - **Funder**: Party providing monetary support for the resource\n - **Custodian**: Party that accepts accountability and responsibility for the data, and ensures appropriate care and maintenance of the resource\n - **Community Point of Contact**: Name of community contact, if applicable. This information is **not reported to ERDDAP**. It is only recorded for RA project tracking purposes.\n - **Data Publisher**: Party who published the resource\n - **Data Processor**: Party that has processed the data in a manner such that the resource has been modified\n - **Distributor**: Party who distributes the resource. Example, Hohonu, Divirod, etc. These distributors provide a packaged instrument, not a single sensor.\n\nExamples:\n - **Owner**: AOOS. The RA that purchased the equipment.  \n - **Funder**: AOOS, USGS. Any organizations that shared the cost of a station. Perhaps this was a pre-existing USGS station that was upgraded by an RA. \n - **Custodian**: JOA Surveys. The organization that is servicing the station.\n - **Community** Point of Contact: Person ABC. The POC who is aware of the station or provides access to the site. This will not be reported to ERDDAP. \n - **Data Publisher**: JOA Surveys. The organization that shares the data via API or other access point. \n - **Data Processor**: Tetra Tech. \n - **Distributor**: Hohonu"
       },
       {
         "id": "geospatial-info",
         "label": "Geospatial Information",
         "fields": [
           {
-            "id": "geometry",
+            "prop": "geometry",
             "type": "geometry",
             "label": "Location",
             "settings": {
@@ -466,48 +484,12 @@ BEGIN
         "id": "additional-info",
         "label": "Additional Information",
         "fields": [
-          {
-            "id": "comment",
-            "type": "long_text",
-            "label": "Comment",
-            "description": "Description of the buoy/platform and contributor",
-            "placeholder": "e.g., South Fork Wind Lidar buoy developed and deployed by Woods Hole Group"
-          },
-          {
-            "id": "acknowledgement",
-            "type": "long_text",
-            "label": "Acknowledgement",
-            "description": "Acknowledgment of financial supporting entities or award numbers",
-            "placeholder": "e.g., This dataset is part of a MetOcean Cyberinfrastructure..."
-          },
-          {
-            "id": "infoURL",
-            "type": "text",
-            "label": "Information URL",
-            "description": "Best website for information about program",
-            "placeholder": "e.g., https://southforkwind.com"
-          },
-          {
-            "id": "license",
-            "type": "long_text",
-            "label": "License",
-            "description": "General license language for re-use/access of data",
-            "placeholder": "e.g., The data may be used and redistributed for free..."
-          },
-          {
-            "id": "processing_level",
-            "type": "text",
-            "label": "Processing Level",
-            "description": "Processing level of data (raw, qc, level 1, etc)",
-            "placeholder": "e.g., raw dataset, no qc provided"
-          },
-          {
-            "id": "Instrument",
-            "type": "text",
-            "label": "Instrument(s)",
-            "description": "Instruments used (separate by comma if multiple)",
-            "placeholder": "e.g., Campbell Scientific MetSENS 500, Garmin GPS16X-HVS"
-          }
+          {"prop": "comment"},
+          {"prop": "acknowledgement"},
+          {"prop": "infoURL"},
+          {"prop": "license"},
+          {"prop": "processing_level"},
+          {"prop": "Instrument"}
         ],
         "description": "Supplementary metadata"
       }
@@ -581,7 +563,8 @@ BEGIN
     "field_mappings": {
       "label": "dataset_id",
       "slug": "dataset_id"
-    }
+    },
+    "required_fields_on_save":["dataset_id"]
   }'::jsonb;
 END;
 $$ LANGUAGE plpgsql;
@@ -620,13 +603,15 @@ BEGIN
                         "description": "Numeric value used to represent missing data.",
                         "type": "number"
                     },
-                    "actual_range": {
-                        "title": "Actual Range",
-                        "description": "Minimum and maximum values; ERDDAP supplies these as a comma-separated pair.",
-                        "type": "array",
-                        "items": { "type": "number" },
-                        "minItems": 2,
-                        "maxItems": 2
+                    "actual_range_min": {
+                        "title": "Minimum value",
+                        "description": "Minimum value; ERDDAP supplies these as a comma-separated pair.",
+                        "type": "number"
+                    },
+                    "actual_range_max": {
+                        "title": "Maximum value",
+                        "description": "Minimum value",
+                        "type": "number"
                     },
                     "axis": {
                         "title": "Axis",
@@ -1137,7 +1122,7 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     ${ADDB_SCHEMA}.modl_object_schema_json_schema()
 
 )
-ON CONFLICT (slug) DO NOTHING;
+ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
 
 -- Insert the default form for MODL (skip if slug already exists)
 INSERT INTO ${ADDB_SCHEMA}.form (
@@ -1147,7 +1132,7 @@ INSERT INTO ${ADDB_SCHEMA}.form (
     is_schema_and_version_default,
     object_type_uuid,
     object_schema_version,
-    form_config,
+    schema_override_config,
     use_form_config
 ) VALUES (
     'system',
@@ -1160,10 +1145,10 @@ INSERT INTO ${ADDB_SCHEMA}.form (
         LIMIT 1
     ),
     1,
-    ${ADDB_SCHEMA}.modl_form_form_config(),
-    true
+    ${ADDB_SCHEMA}.modl_form_schema_override_config(),
+    false
 )
-ON CONFLICT (slug) DO UPDATE SET form_config = EXCLUDED.form_config;
+ON CONFLICT (slug) DO UPDATE SET schema_override_config = EXCLUDED.schema_override_config;
 
 
 
@@ -1314,4 +1299,3 @@ INSERT INTO ${ADDB_SCHEMA}.object_schema (
     ${ADDB_SCHEMA}.modl_collection_s3timeseries_object_schema_json_schema()
 )
 ON CONFLICT (slug) DO UPDATE SET json_schema = EXCLUDED.json_schema;
-
