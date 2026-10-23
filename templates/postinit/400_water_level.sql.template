@@ -112,7 +112,7 @@ BEGIN
           "role": {
             "type": "string",
             "title": "Contributor role",
-            "enum": [
+            "oneOf": [
               {
                 "const": "owner",
                 "title": "Owner",
@@ -1265,17 +1265,17 @@ BEGIN
                       }
                     },
                     {
-                      "prop": "sensors[].additional-sensor-information",
-                      "type": "long_text",
-                      "settings": {
-                        "descriptionPresentation": "tooltip",
-                        "smallLabel": true
-                      }
+                      "prop": "sensors[].telemetry-method"
                     }
                   ]
                 },
                 {
-                  "prop": "sensors[].telemetry-method"
+                  "prop": "sensors[].additional-sensor-information",
+                  "type": "long_text",
+                  "settings": {
+                    "descriptionPresentation": "tooltip",
+                    "smallLabel": true
+                  }
                 }
               ]
             },
