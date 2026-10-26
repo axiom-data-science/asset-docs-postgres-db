@@ -5,7 +5,7 @@ CREATE VIEW ${ADDB_SCHEMA}.document_acdd_vw AS (
         COALESCE( d.data->>'Conventions', NULL ) as "Conventions",
         COALESCE( d.data->>'featureType', NULL ) as "featureType",
         COALESCE( d.data->>'id', NULL ) as "id",
-        COALESCE( d.data->>'infoUrl', NULL ) as "infoUrl",
+        COALESCE( d.data->>'infoUrl', d.data->>'infoURL' ) as "infoUrl",
         COALESCE( d.data->>'keywords', NULL ) as "keywords",
         COALESCE( d.data->>'license', NULL ) as "license",
         COALESCE( d.data->>'naming_authority', NULL ) as "naming_authority",
@@ -18,3 +18,359 @@ CREATE VIEW ${ADDB_SCHEMA}.document_acdd_vw AS (
     -- WHERE
     --     d.type = 'water_level'
 );
+
+DROP VIEW IF EXISTS ${ADDB_SCHEMA}.document_acdd_verbose_vw CASCADE;
+
+CREATE VIEW ${ADDB_SCHEMA}.document_acdd_verbose_vw AS
+WITH schemas AS (
+    SELECT
+        ${ADDB_SCHEMA}.modl_object_schema_json_schema() AS dataset_schema,
+        ${ADDB_SCHEMA}.modl_variable_metadata_object_schema_json_schema() AS variable_schema
+),
+datasets AS (
+    SELECT
+        d.uuid,
+        d.slug,
+        d.label,
+        d.data,
+        CASE ot.slug
+            WHEN 'water_level' THEN ${ADDB_SCHEMA}.water_level_object_schema_json_schema()
+            ELSE schemas.dataset_schema
+        END AS dataset_schema,
+        schemas.variable_schema
+    FROM
+        ${ADDB_SCHEMA}.document d
+        JOIN ${ADDB_SCHEMA}.object_type ot
+            ON ot.uuid = d.object_type_uuid
+        CROSS JOIN schemas
+    WHERE
+        ot.slug IN ('modl', 'water_level')
+)
+SELECT
+    d.uuid,
+    d.slug,
+    COALESCE(d.data->>'id', d.data->>'station-id', d.slug) AS dataset_id,
+    json_build_object(
+        'attributes',
+        ordered_attributes.attributes,
+        'variables',
+        variable_metadata.variables
+    ) AS nco_json
+FROM
+    datasets d
+    CROSS JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(
+                    CASE attribute.key
+                        WHEN 'infoURL' THEN 'infoUrl'
+                        WHEN 'creator_URL' THEN 'creator_url'
+                        WHEN 'station-id' THEN 'station_id'
+                        WHEN 'record-start-date' THEN 'time_coverage_start'
+                        WHEN 'record-end-date' THEN 'time_coverage_end'
+                        ELSE attribute.key
+                    END,
+                    attribute.value
+                ),
+                '{}'::jsonb
+            ) AS attributes
+        FROM
+            jsonb_each(d.data) AS attribute(key, value)
+            JOIN jsonb_each(d.dataset_schema->'properties') AS property(key, value)
+                ON property.key = attribute.key
+        WHERE
+            property.value->>'type' IN ('string', 'number', 'integer', 'boolean')
+            AND CASE attribute.key
+                WHEN 'infoURL' THEN 'infoUrl'
+                WHEN 'creator_URL' THEN 'creator_url'
+                WHEN 'station-id' THEN 'station_id'
+                WHEN 'record-start-date' THEN 'time_coverage_start'
+                WHEN 'record-end-date' THEN 'time_coverage_end'
+                ELSE attribute.key
+            END IN (
+                'acknowledgement',
+                'comment',
+                'creator_country',
+                'creator_email',
+                'creator_institution',
+                'creator_name',
+                'creator_phone',
+                'creator_sector',
+                'creator_url',
+                'id',
+                'infoUrl',
+                'instrument',
+                'license',
+                'platform',
+                'platform_name',
+                'processing_level',
+                'project',
+                'publisher_country',
+                'publisher_email',
+                'publisher_institution',
+                'publisher_name',
+                'publisher_phone',
+                'publisher_type',
+                'publisher_url',
+                'station_id',
+                'summary',
+                'time_coverage_end',
+                'time_coverage_start',
+                'title'
+            )
+    ) dataset_attributes
+    LEFT JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(
+                    'creator_' || creator_attribute.key,
+                    creator_attribute.value
+                ),
+                '{}'::jsonb
+            ) AS attributes
+        FROM
+            jsonb_each(
+                CASE
+                    WHEN jsonb_typeof(d.data->'creator') = 'object'
+                        THEN d.data->'creator'
+                    ELSE '{}'::jsonb
+                END
+            ) AS creator_attribute(key, value)
+            JOIN jsonb_each(
+                d.dataset_schema->'properties'->'creator'->'properties'
+            ) AS creator_property(key, value)
+                ON creator_property.key = creator_attribute.key
+        WHERE
+            creator_property.value->>'type' IN (
+                'string', 'number', 'integer', 'boolean'
+            )
+            AND creator_property.key IN (
+                'country', 'email', 'institution', 'name', 'phone', 'sector', 'url'
+            )
+    ) creator_attributes ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(contributor_attribute.key, contributor_attribute.value),
+                '{}'::jsonb
+            ) AS attributes
+        FROM (
+            SELECT
+                CASE contributor_property.key
+                    WHEN 'affiliation' THEN 'publisher_institution'
+                    ELSE 'publisher_' || contributor_property.key
+                END AS key,
+                to_jsonb(
+                    COALESCE(
+                        string_agg(
+                            COALESCE(publisher.value->>contributor_property.key, ''),
+                            ',' ORDER BY publisher.ordinality
+                        ),
+                        ''
+                    )
+                ) AS value
+            FROM
+                jsonb_each(
+                    d.dataset_schema->'properties'->'contributor'->'items'->'properties'
+                ) AS contributor_property(key, value)
+                CROSS JOIN LATERAL jsonb_array_elements(
+                    CASE
+                        WHEN jsonb_typeof(d.data->'contributor') = 'array'
+                            THEN d.data->'contributor'
+                        ELSE '[]'::jsonb
+                    END
+                ) WITH ORDINALITY AS publisher(value, ordinality)
+            WHERE
+                contributor_property.key IN (
+                    'affiliation', 'country', 'email', 'name', 'phone', 'type', 'url'
+                )
+                AND publisher.value->>'role' = 'publisher'
+            GROUP BY contributor_property.key
+
+            UNION ALL
+
+            SELECT
+                CASE contributor_property.key
+                    WHEN 'role' THEN 'contributor_role'
+                    WHEN 'affiliation' THEN 'contributor_institution'
+                    ELSE 'contributor_' || contributor_property.key
+                END AS key,
+                to_jsonb(
+                    COALESCE(
+                        string_agg(
+                            COALESCE(contributor.value->>contributor_property.key, ''),
+                            ',' ORDER BY contributor.ordinality
+                        ),
+                        ''
+                    )
+                ) AS value
+            FROM
+                jsonb_each(
+                    d.dataset_schema->'properties'->'contributor'->'items'->'properties'
+                ) AS contributor_property(key, value)
+                CROSS JOIN LATERAL jsonb_array_elements(
+                    CASE
+                        WHEN jsonb_typeof(d.data->'contributor') = 'array'
+                            THEN d.data->'contributor'
+                        ELSE '[]'::jsonb
+                    END
+                ) WITH ORDINALITY AS contributor(value, ordinality)
+            WHERE
+                contributor_property.key IN (
+                    'affiliation', 'email', 'name', 'phone', 'role', 'url'
+                )
+                AND contributor.value->>'role' IS DISTINCT FROM 'publisher'
+                AND contributor.value->>'role' IS DISTINCT FROM 'community_poc'
+            GROUP BY contributor_property.key
+        ) contributor_attribute
+    ) contributor_attributes ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT
+            CASE
+                WHEN d.data->'geometry'->>'type' = 'Point'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates') = 'array'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates'->0) = 'number'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates'->1) = 'number'
+                    THEN d.data->'geometry'->'coordinates'->1
+                WHEN jsonb_typeof(d.data->'latitude') = 'number'
+                    THEN d.data->'latitude'
+            END AS latitude,
+            CASE
+                WHEN d.data->'geometry'->>'type' = 'Point'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates') = 'array'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates'->0) = 'number'
+                    AND jsonb_typeof(d.data->'geometry'->'coordinates'->1) = 'number'
+                    THEN d.data->'geometry'->'coordinates'->0
+                WHEN jsonb_typeof(d.data->'longitude') = 'number'
+                    THEN d.data->'longitude'
+            END AS longitude
+    ) point_coordinates ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT
+            CASE
+                WHEN point_coordinates.latitude IS NOT NULL
+                    AND point_coordinates.longitude IS NOT NULL
+                    THEN jsonb_build_object(
+                        'geospatial_lat_min', point_coordinates.latitude,
+                        'geospatial_lat_max', point_coordinates.latitude,
+                        'geospatial_lon_min', point_coordinates.longitude,
+                        'geospatial_lon_max', point_coordinates.longitude,
+                        'geospatial_lat_units', 'degrees_north',
+                        'geospatial_lon_units', 'degrees_east',
+                        'Easternmost_Easting', point_coordinates.longitude,
+                        'Westernmost_Easting', point_coordinates.longitude,
+                        'Northernmost_Northing', point_coordinates.latitude,
+                        'Southernmost_Northing', point_coordinates.latitude
+                    )
+                ELSE '{}'::jsonb
+            END AS attributes
+    ) position_attributes ON TRUE
+    CROSS JOIN LATERAL (
+        SELECT
+            COALESCE(
+                json_object_agg(
+                    attribute.key,
+                    attribute.value
+                    ORDER BY
+                        CASE
+                            WHEN split_part(attribute.key, '_', 1) = 'creator' THEN 1
+                            WHEN split_part(attribute.key, '_', 1) = 'publisher' THEN 2
+                            WHEN split_part(attribute.key, '_', 1) = 'contributor' THEN 3
+                            WHEN split_part(attribute.key, '_', 1) = 'geospatial'
+                                OR attribute.key IN (
+                                    'Easternmost_Easting',
+                                    'Westernmost_Easting',
+                                    'Northernmost_Northing',
+                                    'Southernmost_Northing'
+                                )
+                                THEN 4
+                            ELSE 5
+                        END,
+                        attribute.key
+                ),
+                '{}'::json
+            ) AS attributes
+        FROM
+            jsonb_each(
+                dataset_attributes.attributes
+                    || creator_attributes.attributes
+                    || contributor_attributes.attributes
+                    || position_attributes.attributes
+                    || jsonb_build_object(
+                        'id',
+                        COALESCE(d.data->>'id', d.data->>'station-id', d.slug),
+                        'title',
+                        d.label
+                    )
+            ) AS attribute(key, value)
+    ) ordered_attributes
+    LEFT JOIN LATERAL (
+        SELECT
+            COALESCE(
+                jsonb_object_agg(
+                    variable.variable_name,
+                    jsonb_build_object('attributes', variable.attributes)
+                ),
+                '{}'::jsonb
+            ) AS variables
+        FROM (
+            SELECT
+                variable_metadata.value->>'variable_name' AS variable_name,
+                (
+                    SELECT
+                        COALESCE(
+                            jsonb_object_agg(
+                                metadata_attribute.key,
+                                metadata_attribute.value
+                            ),
+                            '{}'::jsonb
+                        )
+                    FROM
+                        jsonb_each(
+                            CASE
+                                WHEN jsonb_typeof(variable_metadata.value) = 'object'
+                                    THEN variable_metadata.value
+                                ELSE '{}'::jsonb
+                            END
+                        ) AS metadata_attribute(key, value)
+                        JOIN jsonb_each(
+                            d.variable_schema->'properties'->'variables'
+                                ->'additionalProperties'->'properties'
+                        ) AS attribute_schema(key, value)
+                            ON attribute_schema.key = metadata_attribute.key
+                    WHERE
+                        metadata_attribute.key <> 'variable_name'
+                        AND (
+                            attribute_schema.value->>'type' IN (
+                                'string', 'number', 'integer', 'boolean'
+                            )
+                            OR (
+                                attribute_schema.value->>'type' = 'array'
+                                AND attribute_schema.value->'items'->>'type' = 'number'
+                            )
+                        )
+                ) AS attributes
+            FROM
+                ${ADDB_SCHEMA}.relationship r
+                JOIN ${ADDB_SCHEMA}.predicate p
+                    ON p.uuid = r.predicate_uuid
+                JOIN ${ADDB_SCHEMA}.document child
+                    ON child.uuid = r.from_document_uuid
+                JOIN ${ADDB_SCHEMA}.object_type child_type
+                    ON child_type.uuid = child.object_type_uuid
+                CROSS JOIN LATERAL jsonb_each(
+                    CASE
+                        WHEN jsonb_typeof(child.data->'variables') = 'object'
+                            THEN child.data->'variables'
+                        ELSE '{}'::jsonb
+                    END
+                ) AS variable_metadata(key, value)
+            WHERE
+                r.to_document_uuid = d.uuid
+                AND p.predicate = 'has_parent'
+                AND child_type.slug ILIKE '%variable%'
+        ) variable
+        WHERE
+            variable.variable_name IS NOT NULL
+            AND variable.variable_name <> ''
+    ) variable_metadata ON TRUE;
