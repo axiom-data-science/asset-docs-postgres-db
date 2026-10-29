@@ -224,6 +224,7 @@ USING (
 CREATE OR REPLACE FUNCTION asset_doc_insert_update_trigger() RETURNS TRIGGER AS $$
 DECLARE
     default_schema_record ${ADDB_SCHEMA}.object_schema;
+    current_object_type_record ${ADDB_SCHEMA}.object_type;
     validation_schema jsonb;
     schema_mode text;
 BEGIN
@@ -349,6 +350,17 @@ BEGIN
             );
     END IF;
 
+    -- grab the record of the current object type
+    SELECT
+        ot.*
+    INTO
+        current_object_type_record
+    FROM
+        ${ADDB_SCHEMA}.object_type ot
+    WHERE
+        ot.uuid = NEW.object_type_uuid
+    ;
+
     -- If we've reached this point then we plan to either insert or update a
     -- record. In which case, we should emit a Postgres NOTIFY event for any
     -- potential listeners.
@@ -358,8 +370,16 @@ BEGIN
             ( row_to_json(NEW)::jsonb )
             ||
             jsonb_build_object(
+                -- capture trigger values (if needed)
                 'TG_OP', TG_OP,
-                'TG_NAME', TG_NAME
+                'TG_NAME', TG_NAME,
+                -- capture related object type + schema
+                'object_type_slug', current_object_type_record.slug,
+                'object_type_category', current_object_type_record.category,
+                'object_type_data', current_object_type_record.data,
+                'object_schema_uuid', default_schema_record.uuid,
+                'object_schema_slug', default_schema_record.slug,
+                'object_schema_version', default_schema_record.version
             )
         )::text
     );
