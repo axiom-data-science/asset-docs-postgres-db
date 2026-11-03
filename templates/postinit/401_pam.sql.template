@@ -229,36 +229,29 @@ BEGIN
         "required": ["channels"]
       }
     },
-    "analyses": {
+    "qualityAnalyst": { "type": "string", "title": "Quality Analyst", "description": "Person who performed the data quality assessment" },
+    "qualityAssessmentDescription": { "type": "string", "title": "Quality Assessment Description", "description": "Overall description of the quality assessment" },
+
+    "qualityEntries": {
       "type": "array",
-      "title": "Analyses",
+      "title": "Quality Entries",
       "items": {
         "type": "object",
         "properties": {
-          "qualityAnalyst": { "type": "string", "title": "Quality Analyst", "description": "Person who performed the data quality assessment" },
-          "qualityAssessmentDescription": { "type": "string", "title": "Quality Assessment Description", "description": "Overall description of the quality assessment" },
-          "qualityEntries": {
-            "type": "array",
-            "title": "Quality Entries",
-            "items": {
-              "type": "object",
-              "properties": {
-                "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
-                "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
-                "minFrequency": { "type": "number", "title": "Minimum Frequency (Hz)", "description": "Minimum frequency covered by the assessment", "minimum": 0 },
-                "maxFrequency": { "type": "number", "title": "Maximum Frequency (Hz)", "description": "Maximum frequency covered by the assessment", "minimum": 0 },
-                "qualityLevel": { "type": "string", "title": "Quality Level", "enum": ["unverified", "good", "compromised", "unusable"] },
-                "comments": { "type": "string", "title": "Comments", "description": "Additional information about this quality interval" },
-                "channelNumbers": { "type": "array", "title": "Channel Numbers", "description": "Channels to which this quality entry applies", "items": { "type": "integer", "minimum": 1 }, "minItems": 1 }
-              },
-              "required": ["startTime", "endTime", "minFrequency", "maxFrequency", "qualityLevel", "channelNumbers"]
-            }
-          }
-        }
+          "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
+          "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
+          "minFrequency": { "type": "number", "title": "Minimum Frequency (Hz)", "description": "Minimum frequency covered by the assessment", "minimum": 0 },
+          "maxFrequency": { "type": "number", "title": "Maximum Frequency (Hz)", "description": "Maximum frequency covered by the assessment", "minimum": 0 },
+          "qualityLevel": { "type": "string", "title": "Quality Level", "enum": ["unverified", "good", "compromised", "unusable"] },
+          "comments": { "type": "string", "title": "Comments", "description": "Additional information about this quality interval" },
+          "channelNumbers": { "type": "array", "title": "Channel Numbers", "description": "Channels to which this quality entry applies", "items": { "type": "integer", "minimum": 1 }, "minItems": 1 }
+        },
+        "required": ["startTime", "endTime", "minFrequency", "maxFrequency", "qualityLevel", "channelNumbers"]
       }
     }
+
   },
-  "required": ["dataCollectionName", "averageFileLengthMinutes", "deploymentTitle", "deploymentDescription", "instrument", "sourceURI", "calibrationState", "sensitivityFlatValue", "recordings"]
+  "required": ["dataCollectionName", "averageFileLengthMinutes", "deploymentTitle", "deploymentDescription", "instrument", "sourceURI", "calibrationState", "sensitivityFlatValue"]
 }
 '::jsonb;
 END;
@@ -455,44 +448,37 @@ BEGIN
       ]
     },
     {
-      "id": "analyses",
-      "label": "Analyses",
+      "id": "qc",
+      "label": "Quality Control",
       "description": "Quality assessments and quality intervals",
       "fields": [
+        { "prop": "qualityAnalyst" },
+        { "prop": "qualityAssessmentDescription", "type": "long_text" },
         {
-          "prop": "analyses",
+          "prop": "qualityEntries",
           "type": "object",
           "multiple": true,
           "fields": [
-            { "prop": "analyses[].qualityAnalyst" },
-            { "prop": "analyses[].qualityAssessmentDescription", "type": "long_text" },
             {
-              "prop": "analyses[].qualityEntries",
-              "type": "object",
-              "multiple": true,
+              "id": "quality_entry_times_wrapper",
+              "type": "objectWrapper",
+              "label": "",
+              "layout": "grid2",
+              "fields": [{ "prop": "qualityEntries[].startTime" }, { "prop": "qualityEntries[].endTime" }]
+            },
+            {
+              "id": "quality_frequency_level_wrapper",
+              "type": "objectWrapper",
+              "label": "",
+              "layout": "grid3",
               "fields": [
-                {
-                  "id": "quality_entry_times_wrapper",
-                  "type": "objectWrapper",
-                  "label": "",
-                  "layout": "grid2",
-                  "fields": [{ "prop": "analyses[].qualityEntries[].startTime" }, { "prop": "analyses[].qualityEntries[].endTime" }]
-                },
-                {
-                  "id": "quality_frequency_level_wrapper",
-                  "type": "objectWrapper",
-                  "label": "",
-                  "layout": "grid3",
-                  "fields": [
-                    { "prop": "analyses[].qualityEntries[].minFrequency", "settings": { "descriptionPresentation": "tooltip" } },
-                    { "prop": "analyses[].qualityEntries[].maxFrequency", "settings": { "descriptionPresentation": "tooltip" } },
-                    { "prop": "analyses[].qualityEntries[].qualityLevel" }
-                  ]
-                },
-                { "prop": "analyses[].qualityEntries[].comments", "type": "long_text" },
-                { "prop": "analyses[].qualityEntries[].channelNumbers" }
+                { "prop": "qualityEntries[].minFrequency", "settings": { "descriptionPresentation": "tooltip" } },
+                { "prop": "qualityEntries[].maxFrequency", "settings": { "descriptionPresentation": "tooltip" } },
+                { "prop": "qualityEntries[].qualityLevel" }
               ]
-            }
+            },
+            { "prop": "qualityEntries[].comments", "type": "long_text" },
+            { "prop": "qualityEntries[].channelNumbers" }
           ]
         }
       ]
