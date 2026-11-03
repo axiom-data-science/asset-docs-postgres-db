@@ -601,7 +601,7 @@ BEGIN
                     "_FillValue": {
                         "title": "Fill Value",
                         "description": "Numeric value used to represent missing data.",
-                        "type": "number"
+                        "type": ["number" | "string"]
                     },
                     "actual_range_min": {
                         "title": "Minimum value",
