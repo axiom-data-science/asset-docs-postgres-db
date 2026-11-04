@@ -227,6 +227,10 @@ DECLARE
     current_object_type_record ${ADDB_SCHEMA}.object_type;
     validation_schema jsonb;
     schema_mode text;
+    old_jsonb jsonb;
+    old_jsonb_less_lock jsonb;
+    new_jsonb jsonb;
+    new_jsonb_less_lock jsonb;
 BEGIN
     IF current_setting('request.jwt.claims', true) IS NOT NULL THEN
         IF OLD.owner_sub IS NOT NULL THEN
@@ -254,8 +258,7 @@ BEGIN
         END IF;
     END IF;
 
-    -- Maintain updated_at/created_at
-    NEW.updated_at = now();
+    -- Maintain created_at
     IF OLD.created_at IS NOT NULL THEN
         NEW.created_at = OLD.created_at;
     END IF;
@@ -267,6 +270,38 @@ BEGIN
 
     IF OLD.lock_sub IS NOT NULL AND NEW.lock_sub IS NULL THEN
         NEW.locked_at = null;
+    END IF;
+
+    -- Maintain updated_at (but only if we're seeing updates on fields, or if
+    -- we see updates on non-locking fields when it we see updates to the
+    -- locked_sub or locked_at fields
+
+    old_jsonb = row_to_json( OLD )::jsonb;
+    new_jsonb = row_to_json( NEW )::jsonb;
+
+    -- Check if we're potentially updating the locking field...
+    IF NEW.lock_sub IS DISTINCT FROM OLD.lock_sub THEN
+
+        old_jsonb_less_lock = old_jsonb - '{lock_sub,locked_at}'::text[];
+        new_jsonb_less_lock = new_jsonb - '{lock_sub,locked_at}'::text[];
+
+        IF old_jsonb_less_lock @> new_jsonb_less_lock AND new_jsonb_less_lock @> old_jsonb_less_lock THEN
+            -- The non-locking fields are identical between NEW and OLD, so we
+            -- don't change the updated_at timestamp
+        ELSE
+            -- There is some difference between the fields not responsible for
+            -- locking, so we should record an updated timestamp.
+            NEW.updated_at = now();
+        END IF;
+
+    ELSE
+        IF old_jsonb @> new_jsonb AND new_jsonb @> old_jsonb THEN
+            -- All fields identical between old and new, don't do anything to
+            -- change the updated_at timestamp
+        ELSE
+            -- Some fields detected as changed, so change the updated_at timestamp
+            NEW.updated_at = now();
+        END IF;
     END IF;
 
     -- Maintain published_at from published state.
