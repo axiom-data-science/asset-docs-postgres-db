@@ -76,7 +76,8 @@ class LocustUser(HttpUser):
             "/document_for_update",
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {ACCESS_TOKEN}"
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation"
             },
             json={
                 "label": 'testing testing',
@@ -94,6 +95,46 @@ class LocustUser(HttpUser):
         except Exception as exc:
             logging.warning( json.dumps( post_resp.json(), indent=2 ) )
             raise exc
+
+        post_resp_json = post_resp.json()[0]
+        assert 'updated_at' in post_resp_json, \
+            f"Returned document missing updated_at, got: {repr(post_resp_json)}"
+
+        expected_updated_at = post_resp_json['updated_at']
+        owner_sub = post_resp_json['owner_sub']
+
+        patch_resp = self.client.patch(
+            "/document_for_update",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {ACCESS_TOKEN}",
+                "Prefer": "return=representation"
+            },
+            params={
+                "uuid": f"eq.{post_resp_json['uuid']}"
+            },
+            json={
+                # locking by the owner
+                "lock_sub": owner_sub,
+            },
+            name="PATCH_document_for_update"
+        )
+
+        try:
+            patch_resp.raise_for_status()
+        except Exception as exc:
+            logging.warning( json.dumps( patch_resp.json(), indent=2 ) )
+            raise exc
+
+        patch_resp_json = patch_resp.json()[0]
+        assert 'updated_at' in patch_resp_json, \
+            f"Returned patched doc missing updated_at, got: {repr(patch_resp_json)}"
+
+        assert patch_resp_json['lock_sub'] == owner_sub, \
+            "Patch lock did not actually lock the document"
+
+        assert patch_resp_json['updated_at'] == expected_updated_at, \
+            "Patch lock returned updated_at different than expected"
 
     @task
     def test_get_documents_for_upload(self):
