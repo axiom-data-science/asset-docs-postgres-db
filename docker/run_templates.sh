@@ -39,7 +39,7 @@ if [ "${ADDB_PGINIT:-false}" == "true" ]; then
   # We are in a postgres database init, run directly
   PSQL_HOST_ARG=""
 else
-  PSQL_HOST_ARG="--host \"$ADDB_HOST\""
+  PSQL_HOST_ARG="--host $ADDB_HOST"
 
   # Check if postgres target is ready
   # Based on: https://reemus.dev/tldr/postgres-wait-for-ready-bash-script
@@ -50,7 +50,7 @@ else
   # Assume failure, exit code 1
   SUCCESSFUL=1
   while true;  do
-    pg_isready --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout "$TIMEOUT";
+    pg_isready $PSQL_HOST_ARG -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout "$TIMEOUT";
     SUCCESSFUL="$?";
 
     if [ "$SUCCESSFUL" -eq "0" ]; then
