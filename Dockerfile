@@ -79,9 +79,22 @@ RUN chown -R postgres:postgres /usr/lib/postgresql/18/lib
 COPY ./docker/env.sh /usr/local/bin/env.sh
 RUN chmod ug=rwx,o=rx /usr/local/bin/env.sh
 
-# Custom docker-entrypoint.sh to call env.sh just ahead of db initialization
-COPY ./docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod u=rwx,go=rx /usr/local/bin/docker-entrypoint.sh
+# Edit docker-entrypoint.sh to call env.sh just ahead of db initialization
+RUN <<EOF
+# get indent space, will also fast fail if token is not found
+set -euo pipefail
+SPACER="$(grep '^\s*docker_init_database_dir$' /usr/local/bin/docker-entrypoint.sh | tr -cd '[:blank:]')"
+sed -i '/docker_init_database_dir$/i__CUSTOM_ENV_TEMPLATING__/' /usr/local/bin/docker-entrypoint.sh
+sed -E "s/^(.)/$SPACER\1/" <<CUSTOMLINES | sed -i -e '/__CUSTOM_ENV_TEMPLATING__/r /dev/stdin' -e '/__CUSTOM_ENV_TEMPLATING__/d' /usr/local/bin/docker-entrypoint.sh
+# CUSTOM: Calling env.sh to replace init script and configs with
+# envsubstr ahead of database initialization
+/usr/local/bin/env.sh /docker-entrypoint-initdb.d/
+
+CUSTOMLINES
+
+# Ensure our customization made it into the entrypoint, fail if not
+grep -q '^[[:blank:]]*/usr/local/bin/env.sh /docker-entrypoint-initdb.d/$' /usr/local/bin/docker-entrypoint.sh
+EOF
 
 # Allow the postgres user to write to the initdb.d dir (for template processing)
 RUN chown :postgres /docker-entrypoint-initdb.d/
@@ -108,3 +121,14 @@ WORKDIR /
 
 # Runs as root for init, then drops into postgres
 USER root
+
+# Sane defaults for env config (no passwords!)
+# See .env.template
+ENV ADDB_DB_NAME=asset_docs
+ENV ADDB_SCHEMA=asset_docs
+ENV ADDB_OWNER_USER=asset_docs_owner
+ENV ADDB_POSTGREST_USER=asset_docs_postgrest_user
+ENV ADDB_READ_USER=asset_docs_read_user
+ENV ADDB_RW_USER=asset_docs_rw_user
+ENV ADDB_SUPERADMIN_ENTITLEMENT=asset_docs_superadmin_user
+ENV ADDB_RUN_POSTINIT_ON_INITDB=false
