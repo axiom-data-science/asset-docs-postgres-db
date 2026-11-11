@@ -1,3 +1,18 @@
+# Check required variables to fast fail on missing config
+# The following commands detect ADDB variables and generate the checks:
+# grep -hoR '{ADDB_[^[}:]*}' templates | sort -u | sed -e 's/^/: $/' -e 's/}$/:?}/'
+: ${ADDB_DB_NAME:?}
+: ${ADDB_OWNER_USER:?}
+: ${ADDB_PASSWORD:?}
+: ${ADDB_POSTGREST_USER:?}
+: ${ADDB_POSTGREST_USER_PASSWORD:?}
+: ${ADDB_READ_USER:?}
+: ${ADDB_READ_USER_PASSWORD:?}
+: ${ADDB_RW_USER:?}
+: ${ADDB_RW_USER_PASSWORD:?}
+: ${ADDB_SCHEMA:?}
+: ${ADDB_SUPERADMIN_ENTITLEMENT:?}
+
 # Create user and database
 psql --username "$POSTGRES_USER" postgres <<'EOF'
     CREATE ROLE "${ADDB_OWNER_USER}" WITH LOGIN PASSWORD '${ADDB_PASSWORD}';
@@ -60,3 +75,8 @@ psql --username "$POSTGRES_USER" "${ADDB_DB_NAME}" <<'EOF'
     RETURN ARRAY(SELECT jsonb_array_elements_text(_js));
 
 EOF
+
+if [ "${ADDB_RUN_POSTINIT_ON_INITDB:-false}" == "true" ]; then
+  echo "Running postinit during database initialization because ADDB_RUN_POSTINIT_ON_INITDB == true"
+  ADDB_PGINIT=true /usr/local/bin/run_templates.sh /templates
+fi

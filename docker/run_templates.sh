@@ -35,29 +35,37 @@ if [ "$TEMPLATES_RET" -ne '0' ]; then
     exit 4;
 fi
 
-# Based on: https://reemus.dev/tldr/postgres-wait-for-ready-bash-script
-TIMEOUT=5
-RETRY_COUNT=0
-RETRY_MAX=5
-RETRY_INTERVAL=1
-# Assume failure, exit code 1
-SUCCESSFUL=1
-while true;  do
-  pg_isready --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout "$TIMEOUT";
-  SUCCESSFUL="$?";
+if [ "${ADDB_PGINIT:-false}" == "true" ]; then
+  # We are in a postgres database init, run directly
+  PSQL_HOST_ARG=""
+else
+  PSQL_HOST_ARG="--host $ADDB_HOST"
 
-  if [ "$SUCCESSFUL" -eq "0" ]; then
-    break;
-  fi
+  # Check if postgres target is ready
+  # Based on: https://reemus.dev/tldr/postgres-wait-for-ready-bash-script
+  TIMEOUT=5
+  RETRY_COUNT=0
+  RETRY_MAX=5
+  RETRY_INTERVAL=1
+  # Assume failure, exit code 1
+  SUCCESSFUL=1
+  while true;  do
+    pg_isready $PSQL_HOST_ARG -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" --timeout "$TIMEOUT";
+    SUCCESSFUL="$?";
 
-  RETRY_COUNT=$(($RETRY_COUNT + 1))
-  if [ "$RETRY_COUNT" -ge "$RETRY_MAX" ]; then
-    echo "Postgres not ready in time ($RETRY_COUNT attempts with $TIMEOUT second timeouts)." 1>&2;
-    exit 5;
-  fi
-  echo "Waiting for PostgreSQL to be ready... Attempt: ${RETRY_COUNT}";
-  sleep "${RETRY_INTERVAL}";
-done
+    if [ "$SUCCESSFUL" -eq "0" ]; then
+      break;
+    fi
+
+    RETRY_COUNT=$(($RETRY_COUNT + 1))
+    if [ "$RETRY_COUNT" -ge "$RETRY_MAX" ]; then
+      echo "Postgres not ready in time ($RETRY_COUNT attempts with $TIMEOUT second timeouts)." 1>&2;
+      exit 5;
+    fi
+    echo "Waiting for PostgreSQL to be ready... Attempt: ${RETRY_COUNT}";
+    sleep "${RETRY_INTERVAL}";
+  done
+fi
 
 while read -r line; do
 
@@ -73,7 +81,7 @@ while read -r line; do
     fi
 
     echo "Executing $BN";
-    psql -v ON_ERROR_STOP=1 --host "$ADDB_HOST" -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" -f "$line";
+    psql -v ON_ERROR_STOP=1 $PSQL_HOST_ARG -U "$ADDB_OWNER_USER" --dbname "$ADDB_DB_NAME" -f "$line";
     PSQL_RET=$?;
     rm "$line";
     if [ "$PSQL_RET" -ne '0' ]; then

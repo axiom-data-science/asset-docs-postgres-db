@@ -25,6 +25,10 @@ services:
       - ADDB_RW_USER
       - ADDB_RW_USER_PASSWORD
       - ADDB_SCHEMA
+      # Whether to run the 'postinit' sql templates during db init (if true)
+      # - ADDB_RUN_POSTINIT_ON_INITDB=true
+      # If doing 'postinit' during db init, whether to load mock data (if true)
+      # - ADDB_ENABLE_MOCK_DATA=true
     ports:
      - 2345:5432
     healthcheck:
