@@ -6,7 +6,7 @@ BEGIN
     IF current_setting('request.jwt.claims', true ) IS NULL THEN
         -- If request.jwt.claims is null then that means that PostgREST isn't
         -- involved and that client is connected via another Postgres client
-        -- (and therefore, isn't a PostgREST anonymouse connection)
+        -- (and therefore, isn't a PostgREST anonymous connection)
         --
         -- Said another way: if you're logged in to the Postgres database via
         -- a tool like psql, DBeaver, etc., then we know who you are, and you
