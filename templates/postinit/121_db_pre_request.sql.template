@@ -28,7 +28,7 @@ BEGIN
     -- in the persons table once they create an asset doc record.
     IF (
         is_transaction_read_only != 'on' AND
-        NOT authenticated_person_exists
+        authenticated_person_exists IS FALSE
     ) THEN
         INSERT INTO ${ADDB_SCHEMA}.person
         (
@@ -67,7 +67,7 @@ BEGIN
 
     IF (
         is_transaction_read_only != 'on' AND
-        authenticated_person_exists
+        authenticated_person_exists IS TRUE
     ) THEN
         UPDATE ${ADDB_SCHEMA}.person
         SET
