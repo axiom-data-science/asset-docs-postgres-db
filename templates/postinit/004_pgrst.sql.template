@@ -1,0 +1,29 @@
+CREATE OR REPLACE FUNCTION ${ADDB_SCHEMA}_private.is_pgrst_anonymous() RETURNS BOOLEAN as
+$$
+DECLARE
+    default_schema ${ADDB_SCHEMA}.object_schema;
+BEGIN
+    IF current_setting('request.jwt.claims', true ) IS NULL THEN
+        -- If request.jwt.claims is null then that means that PostgREST isn't
+        -- involved and that client is connected via another Postgres client
+        -- (and therefore, isn't a PostgREST anonymous connection)
+        --
+        -- Said another way: if you're logged in to the Postgres database via
+        -- a tool like psql, DBeaver, etc., then we know who you are, and you
+        -- aren't the PostgREST anonymous user.
+        RETURN false;
+    END IF;
+
+    RETURN (
+        -- PostgREST, when authenticating anonymously, will fill in the
+        -- request.jwt.claims with the property of 'role' having the value of
+        -- the configured DB_ANON_ROLE.
+        current_setting('request.jwt.claims', true )::json->>'role' = '${ADDB_READ_USER}'
+    );
+END
+$$ language plpgsql;
+
+
+REVOKE EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.is_pgrst_anonymous() FROM public;
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.is_pgrst_anonymous() TO ${ADDB_READ_USER};
+GRANT EXECUTE ON FUNCTION ${ADDB_SCHEMA}_private.is_pgrst_anonymous() TO ${ADDB_RW_USER};
