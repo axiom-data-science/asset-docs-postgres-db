@@ -27,11 +27,12 @@ ALTER TABLE ${ADDB_SCHEMA}.person ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS person_policy_select ON ${ADDB_SCHEMA}.person;
 CREATE POLICY person_policy_select ON ${ADDB_SCHEMA}.person
 FOR SELECT
---  All persons publicly SELECTable if no sub/role requirement,
--- otherwise the subs_for_select or roles_for_select indicate a required
--- sub/role for the record.
+--  For authenticated users (with JWT), all persons publicly SELECTable if no
+-- sub/role requirement, otherwise the subs_for_select or roles_for_select
+-- indicate a required sub/role for the record.
 USING (
     (
+    NOT ${ADDB_SCHEMA}_private.is_pgrst_anonymous() AND
     owner_sub IS NOT NULL
     AND (
         (
