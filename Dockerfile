@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zlib1g-dev \
         libssl-dev \
         libmagic-dev \
+        libkrb5-dev \
         jq \
         && \
     apt-get clean && \
@@ -70,6 +71,14 @@ RUN make && make install
 
 # Remove unnecessary build files
 RUN rm -rf /home/supa /home/linz/ /home/nmandery
+
+# Add extension that allows for background / asynchronous job management
+ADD https://github.com/vibhorkum/pg_background.git#989b0b453a7c8d98ed07f6bc7baf95bc96bbee93 /home/vibhorkum/pg_background
+WORKDIR /home/vibhorkum/pg_background
+RUN make && make install
+
+# Remove unnecessary build files
+RUN rm -rf /home/supa /home/linz/ /home/nmandery /home/vibhorkum
 
 # RUN chown -R postgres:postgres /home/supa /home/linz /home/nmandery/pg_byteamagic
 RUN chown -R postgres:postgres /usr/share/postgresql/18/extension
