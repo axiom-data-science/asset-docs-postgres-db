@@ -1272,7 +1272,7 @@ VALUES
             "dataSubmitter": "ADDB Mock Data",
             "relatedProjects": ["ADDB Mock Data"],
             "contributor": [
-                {"role": "scientist", "name": "Example Coastal Lab", "email": "data@example.org"}
+                {"role": "contributor", "name": "Example Coastal Lab", "email": "data@example.org"}
             ]
         }'::jsonb,
         '{"seed_group":"template_examples"}'::jsonb,
@@ -1289,7 +1289,7 @@ VALUES
         '{
             "siteOrCruiseName": "Mock Newport Harbor",
             "alternateSiteName": "Newport Demo Site",
-            "platform": "Fixed mooring",
+            "platform": "MOORED_SURFACE_BUOY",
             "locationDetail": {
                 "type": "stationary_marine",
                 "seaArea": "Narragansett Bay",
