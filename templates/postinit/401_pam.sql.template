@@ -18,9 +18,521 @@ BEGIN
   "title": "PAM project",
   "description": "A pam project",
   "type": "object",
+  "definitions": {
+      "organizations": {
+      "type": "string",
+      "x-vocabulary": "https://passiveacoustics.fisheries.noaa.gov/data/reference_tables.json#organizations",
+      "oneOf": [
+        {
+          "const": "AFSC",
+          "title": "NOAA Alaska Fisheries Science Center"
+        },
+        {
+          "const": "BOEM",
+          "title": "Bureau of Ocean Energy Management"
+        },
+        {
+          "const": "BOSL",
+          "title": "Benioff Ocean Science Laboratory"
+        },
+        {
+          "const": "BWCG",
+          "title": "Blue Wave Consulting Group"
+        },
+        {
+          "const": "CASTELLOTE",
+          "title": "Manuel Castellote"
+        },
+        {
+          "const": "CIMAR",
+          "title": "Cooperative Institute of Marine & Atmospheric Research"
+        },
+        {
+          "const": "CINMS",
+          "title": "Channel Islands National Marine Sanctuary"
+        },
+        {
+          "const": "COA",
+          "title": "College of the Atlantic"
+        },
+        {
+          "const": "CORNELL",
+          "title": "Cornell University"
+        },
+        {
+          "const": "CROWE",
+          "title": "Leah Crowe"
+        },
+        {
+          "const": "CWI",
+          "title": "Canadian Whale Institute"
+        },
+        {
+          "const": "DALHOUSIE",
+          "title": "Dalhousie University"
+        },
+        {
+          "const": "DEHAAN",
+          "title": "Dick DeHaan"
+        },
+        {
+          "const": "DFO",
+          "title": "Fisheries and Oceans Canada"
+        },
+        {
+          "const": "DUKE",
+          "title": "Duke University"
+        },
+        {
+          "const": "FFWCC",
+          "title": "Florida Fish and Wildlife Conservation Commission"
+        },
+        {
+          "const": "FGBNMS",
+          "title": "NOAA Flower Garden Banks National Marine Sanctuary"
+        },
+        {
+          "const": "FKNMS",
+          "title": "NOAA Florida Keys National Marine Sanctuary"
+        },
+        {
+          "const": "FUGRO",
+          "title": "Fugro"
+        },
+        {
+          "const": "GARFO",
+          "title": "NOAA Greater Atlantic Regional Fisheries Office"
+        },
+        {
+          "const": "GRNMS",
+          "title": "NOAA Gray''s Reef National Marine Sanctuary"
+        },
+        {
+          "const": "HDR",
+          "title": "HDR, Inc."
+        },
+        {
+          "const": "HIHWNMS",
+          "title": "NOAA Hawaiian Islands Humpback Whale National Marine Sanctuary"
+        },
+        {
+          "const": "JASCO",
+          "title": "JASCO Applied Sciences"
+        },
+        {
+          "const": "JCUCSE",
+          "title": "James Cook University College of Science and Engineering"
+        },
+        {
+          "const": "JIMAR",
+          "title": "Joint Institute of Marine & Atmospheric Research"
+        },
+        {
+          "const": "MADMF",
+          "title": "Massachusetts Division of Marine Fisheries"
+        },
+        {
+          "const": "MEDMR",
+          "title": "Maine Department of Marine Resources"
+        },
+        {
+          "const": "MELLINGER",
+          "title": "David Mellinger"
+        },
+        {
+          "const": "MOORS-MURPHY",
+          "title": "Hilary Moors-Murphy"
+        },
+        {
+          "const": "NAVFAC",
+          "title": "Naval Facilities Engineering Systems Command"
+        },
+        {
+          "const": "NAVY",
+          "title": "U.S. Navy"
+        },
+        {
+          "const": "NCCOS",
+          "title": "NOAA National Centers for Coastal Ocean Science"
+        },
+        {
+          "const": "NEAQ",
+          "title": "New England Aquarium"
+        },
+        {
+          "const": "NEFSC",
+          "title": "NOAA Northeast Fisheries Science Center"
+        },
+        {
+          "const": "NEWC",
+          "title": "New England Whale Center"
+        },
+        {
+          "const": "NJDEP",
+          "title": "New Jersey Department of Environmental Protection"
+        },
+        {
+          "const": "NMFS",
+          "title": "National Marine Fisheries Service"
+        },
+        {
+          "const": "NMSF",
+          "title": "National Marine Sanctuary Foundation"
+        },
+        {
+          "const": "NOS",
+          "title": "NOAA National Ocean Service"
+        },
+        {
+          "const": "NPS",
+          "title": "National Park Service"
+        },
+        {
+          "const": "NTNU",
+          "title": "Norwegian University of Science and Technology"
+        },
+        {
+          "const": "NWFSC",
+          "title": "NOAA Northwest Fisheries Science Center"
+        },
+        {
+          "const": "NYDEC",
+          "title": "New York State Department of Environmental Conservation"
+        },
+        {
+          "const": "OAP",
+          "title": "NOAA Science & Technology, Ocean Acoustics Program"
+        },
+        {
+          "const": "ONMS",
+          "title": "NOAA Office of National Marine Sanctuaries"
+        },
+        {
+          "const": "ORSTED",
+          "title": "Orsted"
+        },
+        {
+          "const": "OSA",
+          "title": "Ocean Science Analytics"
+        },
+        {
+          "const": "OSU",
+          "title": "Oregon State University"
+        },
+        {
+          "const": "PARKS",
+          "title": "Susan Parks"
+        },
+        {
+          "const": "PARKSAU",
+          "title": "Parks Australia"
+        },
+        {
+          "const": "PIFSC",
+          "title": "NOAA Pacific Islands Fisheries Science Center"
+        },
+        {
+          "const": "PMEL",
+          "title": "NOAA Pacific Marine Environmental Laboratory"
+        },
+        {
+          "const": "PORTER",
+          "title": "Lindsay Porter (Hong Kong)"
+        },
+        {
+          "const": "RPS_TT",
+          "title": "RPS, A Tetra Tech Company"
+        },
+        {
+          "const": "RUTGERS",
+          "title": "Rutgers University"
+        },
+        {
+          "const": "RUTGERS-SBU",
+          "title": "Rutgers University and Stony Brook University"
+        },
+        {
+          "const": "SBNMS",
+          "title": "NOAA Stellwagen Bank National Marine Sanctuary"
+        },
+        {
+          "const": "SBU",
+          "title": "Stony Brook University"
+        },
+        {
+          "const": "SCHARER",
+          "title": "Michelle Schärer"
+        },
+        {
+          "const": "SCRIPPS",
+          "title": "University of California San Diego, Scripps Institution of Oceanography"
+        },
+        {
+          "const": "SEA",
+          "title": "SEA, Ltd."
+        },
+        {
+          "const": "SEAMMR",
+          "title": "Southeast Asia Marine Mammal Research (Hong Kong)"
+        },
+        {
+          "const": "SEFSC",
+          "title": "NOAA Southeast Fisheries Science Center"
+        },
+        {
+          "const": "SIROVIC",
+          "title": "Ana Širović"
+        },
+        {
+          "const": "SKIO",
+          "title": "University of Georgia Skidaway Institute of Oceanography"
+        },
+        {
+          "const": "SKIO-USC",
+          "title": "Skidaway Institute of Oceanography and University of South Carolina"
+        },
+        {
+          "const": "SMAST",
+          "title": "School for Marine Science & Technology, UMass Dartmouth"
+        },
+        {
+          "const": "STAFFORD",
+          "title": "Kate Stafford"
+        },
+        {
+          "const": "STANFORD",
+          "title": "Stanford University"
+        },
+        {
+          "const": "SWFSC",
+          "title": "NOAA Southwest Fisheries Science Center"
+        },
+        {
+          "const": "SYRACUSE",
+          "title": "Syracuse University"
+        },
+        {
+          "const": "TAMG",
+          "title": "Texas A&M University at Galveston"
+        },
+        {
+          "const": "TMMC",
+          "title": "The Marine Mammal Center"
+        },
+        {
+          "const": "TNC",
+          "title": "The Nature Conservancy"
+        },
+        {
+          "const": "UAF",
+          "title": "University of Alaska Fairbanks"
+        },
+        {
+          "const": "UDEC",
+          "title": "University of Concepción"
+        },
+        {
+          "const": "UH",
+          "title": "University of Hawaii"
+        },
+        {
+          "const": "UMASSDART",
+          "title": "University of Massachusetts Dartmouth"
+        },
+        {
+          "const": "UMD",
+          "title": "University of Maryland"
+        },
+        {
+          "const": "UME",
+          "title": "University of Maine"
+        },
+        {
+          "const": "UNB",
+          "title": "University of New Brunswick"
+        },
+        {
+          "const": "UNH",
+          "title": "University of New Hampshire"
+        },
+        {
+          "const": "UPR",
+          "title": "University of Puerto Rico"
+        },
+        {
+          "const": "USC",
+          "title": "University of South Carolina"
+        },
+        {
+          "const": "UTGAL",
+          "title": "University of Texas, Galveston"
+        },
+        {
+          "const": "UVIC",
+          "title": "University of Victoria"
+        },
+        {
+          "const": "UWASH",
+          "title": "University of Washington"
+        },
+        {
+          "const": "WCS",
+          "title": "Wildlife Conservation Society"
+        },
+        {
+          "const": "WHOI",
+          "title": "Woods Hole Oceanographic Institution"
+        }
+      ]
+    },
+    "contributor_roles": {
+      "x-vocabulary": "https://data.noaa.gov/resources/iso19139/schema/resources/Codelist/gmxCodelists.xml#CI_RoleCode",
+      "oneOf": [
+        {
+          "const": "principalInvestigator",
+          "title": "Principal Investigator",
+          "description": "Key party responsible for gathering information and conducting research"
+        },
+        {
+          "const": "resourceProvider",
+          "title": "Resource Provider",
+          "description": "Party that supplies the resource"
+        },
+        {
+          "const": "custodian",
+          "title": "Custodian",
+          "description": "Party responsible for the resource and its care and maintenance"
+        },
+        {
+          "const": "owner",
+          "title": "Owner",
+          "description": "Party that owns the resource"
+        },
+        {
+          "const": "sponsor",
+          "title": "Sponsor",
+          "description": "Party that sponsors the resource"
+        },
+        {
+          "const": "user",
+          "title": "User",
+          "description": "Party that uses the resource"
+        },
+        {
+          "const": "distributor",
+          "title": "Distributor",
+          "description": "Party that distributes the resource"
+        },
+        {
+          "const": "originator",
+          "title": "Originator",
+          "description": "Party that created the resource"
+        },
+        {
+          "const": "pointOfContact",
+          "title": "Point of Contact",
+          "description": "Party to contact for information about or access to the resource"
+        },
+        {
+          "const": "processor",
+          "title": "Processor",
+          "description": "Party that processed and modified the resource"
+        },
+        {
+          "const": "publisher",
+          "title": "Publisher",
+          "description": "Party that published the resource"
+        },
+        {
+          "const": "author",
+          "title": "Author",
+          "description": "Party that authored the resource"
+        },
+        {
+          "const": "coAuthor",
+          "title": "Co-author",
+          "description": "Party that jointly authored the resource"
+        },
+        {
+          "const": "collaborator",
+          "title": "Collaborator",
+          "description": "Party that helped generate the resource, other than the principal investigator"
+        },
+        {
+          "const": "editor",
+          "title": "Editor",
+          "description": "Party that reviewed or revised the resource to improve its content"
+        },
+        {
+          "const": "mediator",
+          "title": "Mediator",
+          "description": "Entity that mediates access to the resource for its intended users"
+        },
+        {
+          "const": "rightsHolder",
+          "title": "Rights Holder",
+          "description": "Party that owns or manages rights to the resource"
+        },
+        {
+          "const": "contributor",
+          "title": "Contributor",
+          "description": "Party that contributed to the resource"
+        },
+        {
+          "const": "funder",
+          "title": "Funder",
+          "description": "Party that provided monetary support for the resource"
+        },
+        {
+          "const": "stakeholder",
+          "title": "Stakeholder",
+          "description": "Party with an interest in the resource or its use"
+        }
+      ]
+    }
+  },
   "properties": {
     "project": { "type": "string", "title": "Project", "description": "Project name", "minLength": 1 },
-    "dataSubmitter": { "type": "string", "title": "Data Submitter", "description": "Person responsible for submitting the data" },
+    "summary": {
+      "type": "string",
+      "title": "Summary",
+      "description": "A paragraph describing the dataset, analogous to an abstract for a paper."
+    },
+    "purpose": {
+      "type": "string",
+      "title": "Purpose",
+      "description": "One sentence on the purpose of the data collection."
+    },
+    "acknowledgement": {
+      "type": "string",
+      "title": "Acknowledgement",
+      "description": "One sentence to use when acknowledging the data, including grant numbers if any."
+    },
+    "conventions": {
+      "type": "string",
+      "title": "Conventions",
+      "description": "A comma-separated list of the conventions that are followed by the dataset. For files that follow this version of ACDD, include the string ''ACDD-1.3''."
+    },
+    "keywords": {
+      "type": "string",
+      "title": "Keywords",
+      "description": "A comma-separated list of key words and/or phrases. Keywords may be common words or phrases, terms from a controlled vocabulary (GCMD is often used), or URIs for terms from a controlled vocabulary."
+    },
+    "keywords_vocabulary":{
+      "type": "string",
+      "title": "Keywords vocabulary",
+      "description":"If you are using a controlled vocabulary for the words/phrases in your ''keywords'' attribute, this is the unique name or identifier of the vocabulary from which keywords are taken. If more than one keyword vocabulary is used, each may be presented with a prefix and a following comma, so that keywords may optionally be prefixed with the controlled vocabulary key. Example: ''GCMD:GCMD Keywords, CF:NetCDF COARDS Climate and Forecast Standard Names''."
+    },
+    "source": {
+      "type": "string",
+      "title": "Source",
+      "description": "The method of production of the original data. If it was model-generated, source should name the model and its version. If it is observational, source should characterize it. This attribute is defined in the CF Conventions. Examples: ''temperature from CTD #1234''; ''world model v.0.1''."
+    },
+    "dataSubmitter": { 
+      "type": "string", 
+      "title": "Data Submitter", 
+      "description": "Person responsible for submitting the data" 
+    },
     "relatedProjects": {
       "type": "array",
       "title": "Related Projects",
@@ -35,24 +547,42 @@ BEGIN
           "role": {
             "type": "string",
             "title": "Contributor role",
-            "oneOf": [
-              { 
-                "const": "funder", 
-                "title": "Funder", 
-                "description": "Organizations that funded the data collection" 
-              },
-              { 
-                "const": "scientist", 
-                "title": "Scientist", 
-                "description": "People involved in collecting or processing the data" 
-              }
-            ]
+            "$ref": "#/definitions/contributor_roles"
           },
           "name": { "type": "string", "title": "Name" },
           "phone": { "type": "string", "format": "phone", "title": "Telephone (primary)" },
           "email": { "type": "string", "format": "email", "title": "Email" },
           "url": { "type": "string", "title": "URL" },
-          "affiliation": { "type": "string", "title": "Organization" }
+          "affiliation": { 
+            "type": "string", 
+            "title": "Organization",
+            "$ref": "#/definitions/organizations"
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items":{
+        "type":"object",
+        "properties": {
+          "date":{
+            "type":"string",
+            "format": "date",
+            "title":"Date that change occurred"
+          },
+          "name":{
+            "type":"string",
+            "title":"Person or institution"
+          },
+          "statement":{
+            "type":"string",
+            "title":"What was changed"
+          },
+          "processing_step":{
+            "type":"string",
+            "title":"Type of update"
+          }
         }
       }
     }
@@ -75,7 +605,17 @@ BEGIN
   "properties": {
     "siteOrCruiseName": { "type": "string", "title": "Site or Cruise Name", "description": "Location name, cruise ID, or site" },
     "alternateSiteName": { "type": "string", "title": "Alternate Site Name", "description": "Alternate site label" },
-    "platform": { "type": "string", "title": "Platform", "description": "Platform on which the acoustic recorders were deployed", "minLength": 1 },
+    "platform": { 
+      "type": "string", 
+      "title": "Platform", 
+      "description": "Platform on which the acoustic recorders were deployed", 
+      "minLength": 1,
+      "$ref": "#/definitions/platform_types"
+    },
+    "platform_vocabulary": {
+      "type": "string",
+      "const": "https://passiveacoustics.fisheries.noaa.gov/pars/guide/reference_tables.html#platform_types"
+    },
     "locationDetail": {
       "type": "object",
       "title": "Location Detail",
@@ -128,6 +668,36 @@ BEGIN
     }
   },
   "definitions": {
+    "platform_types": {
+      "type": "string",
+      "x-vocabulary": "https://passiveacoustics.fisheries.noaa.gov/data/reference_tables.json#platform_types",
+      "oneOf": [
+        {
+          "const": "BOTTOM_MOUNTED_MOORING",
+          "title": "Bottom Mounted Mooring"
+        },
+        {
+          "const": "DRIFTING_BUOY",
+          "title": "Drifting Buoy"
+        },
+        {
+          "const": "ELECTRIC_GLIDER",
+          "title": "Electric Glider"
+        },
+        {
+          "const": "MOORED_SURFACE_BUOY",
+          "title": "Moored Surface Buoy"
+        },
+        {
+          "const": "TOWED_ARRAY",
+          "title": "Towed Array"
+        },
+        {
+          "const": "WAVE_GLIDER",
+          "title": "Wave Glider"
+        }
+      ]
+    },
     "marineInstrumentLocation": {
       "type": "object",
       "properties": {
@@ -229,7 +799,6 @@ BEGIN
         "required": ["channels"]
       }
     },
-    "qualityAnalyst": { "type": "string", "title": "Quality Analyst", "description": "Person who performed the data quality assessment" },
     "qualityAssessmentDescription": { "type": "string", "title": "Quality Assessment Description", "description": "Overall description of the quality assessment" },
 
     "qualityEntries": {
@@ -238,6 +807,7 @@ BEGIN
       "items": {
         "type": "object",
         "properties": {
+          "qualityAnalyst": { "type": "string", "title": "Quality Analyst", "description": "Person who performed the data quality assessment" },
           "startTime": { "type": "string", "format": "date-time", "title": "Start Time" },
           "endTime": { "type": "string", "format": "date-time", "title": "End Time" },
           "minFrequency": { "type": "number", "title": "Minimum Frequency (Hz)", "description": "Minimum frequency covered by the assessment", "minimum": 0 },
@@ -264,34 +834,117 @@ BEGIN
 {
   "id": "pam_project",
   "label": "PAM Project",
-  "fields": [
+  "pages": [
     {
-      "id": "wrap1",
-      "type": "objectWrapper",
-      "label": "",
-      "layout": "grid2",
-      "fields": [{ "prop": "project" }, { "prop": "dataSubmitter" }]
+      "id":"overview",
+      "label": "Overview",
+      "fields": [
+          {
+            "prop": "dataSubmitter"
+          },
+         {
+            "prop": "project"
+          },
+          {
+            "prop":"summary",
+            "type":"long_text"
+          },
+          {
+            "prop": "relatedProjects[]"
+          }
+
+      ]
     },
     {
+      "id": "contributors",
+      "label": "Contributors",
+      "fields":[
+            {
       "prop": "contributor[]",
       "fields": [
-        { "prop": "contributor[].role", "label": "Role", "type": "select" },
         {
-          "id": "contributor_contact_wrapper",
+          "prop": "contributor[].role",
+          "type": "select",
+          "label": "Role"
+        },
+        {
+          "prop": "contributor[].name"
+        },
+        {
+          "id":"contributor_contact_details_wrapper",
           "type": "objectWrapper",
-          "layout": "grid2",
           "label": "",
-          "settings": { "className": "p-0 bg-transparent" },
           "fields": [
-            { "prop": "contributor[].name" },
-            { "prop": "contributor[].phone" },
-            { "prop": "contributor[].email" },
-            { "prop": "contributor[].url" }
+                {
+                  "prop": "contributor[].phone"
+                },
+                {
+                  "prop": "contributor[].email"
+                },
+                {
+                  "prop": "contributor[].url"
+                },
+                {
+                  "prop": "contributor[].affiliation"
+                }
+              ],
+              "layout": "grid2",
+              "settings":{
+                "className": "p-0 bg-transparent"
+              }
+            }
           ]
         }
       ]
     },
-    { "prop": "relatedProjects[]" }
+    {
+      "id":"history-page",
+      "label": "History",
+      "fields":[
+        {
+          "prop":"history[]",
+          "fields":[
+            {
+              "id":"history-wrapper",
+              "type":"objectWrapper",
+              "label":"",
+              "layout":"grid3",
+              "settings":{
+                "className":"p-0 bg-slate-200"
+              },
+              "fields":[
+                {"prop":"history[].name"},
+                {"prop":"history[].date"},
+                {"prop":"history[].processing_step"}
+              ]
+            },
+            {"prop":"history[].statement"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "archive",
+      "label": "Archive attributes",
+      "fields":[
+        {"prop":"purpose"},
+        {"prop":"conventions"},
+        {"prop":"acknowledgement", "type":"long_text"},
+        {
+          "id":"keywords_wrap",
+          "type":"objectWrapper",
+          "label":"",
+          "fields":[
+            {"prop":"keywords"},
+            {"prop":"keywords_vocabulary"}
+          ]
+        },
+        {"prop":"source"}
+      ]
+    }
+
+  ],
+  "fields": [
   ]
 }
 '::jsonb;
@@ -314,9 +967,14 @@ BEGIN
       "skip_path": true,
       "layout": "grid2",
       "settings": { "className": "pt-0" },
-      "fields": [{ "prop": "alternateSiteName" }, { "prop": "platform" }]
+      "fields": [
+        { "prop": "alternateSiteName" }, 
+        { "prop": "platform" }
+        
+      ]
     },
-    { "prop": "locationDetail" }
+    { "prop": "locationDetail" },
+    {"prop": "platform_vocabulary", "type":"constant"}
   ]
 }
 '::jsonb;
@@ -452,32 +1110,44 @@ BEGIN
       "label": "Quality Control",
       "description": "Quality assessments and quality intervals",
       "fields": [
-        { "prop": "qualityAnalyst" },
         { "prop": "qualityAssessmentDescription", "type": "long_text" },
         {
           "prop": "qualityEntries",
           "type": "object",
           "multiple": true,
           "fields": [
+            { "prop": "qualityAnalyst" },
             {
               "id": "quality_entry_times_wrapper",
               "type": "objectWrapper",
               "label": "",
               "layout": "grid2",
-              "fields": [{ "prop": "qualityEntries[].startTime" }, { "prop": "qualityEntries[].endTime" }]
+              "settings":{
+                "className":"p-0 bg-slate-200"
+              },
+              "fields": [
+                { "prop": "qualityEntries[].startTime" }, 
+                { "prop": "qualityEntries[].endTime" }
+              ]
             },
             {
               "id": "quality_frequency_level_wrapper",
               "type": "objectWrapper",
               "label": "",
               "layout": "grid3",
+              "settings":{
+                "className":"p-0 bg-slate-200"
+              },
               "fields": [
                 { "prop": "qualityEntries[].minFrequency", "settings": { "descriptionPresentation": "tooltip" } },
                 { "prop": "qualityEntries[].maxFrequency", "settings": { "descriptionPresentation": "tooltip" } },
                 { "prop": "qualityEntries[].qualityLevel" }
               ]
             },
-            { "prop": "qualityEntries[].comments", "type": "long_text" },
+            { 
+              "prop": "qualityEntries[].comments", 
+              "type": "long_text" 
+            },
             { "prop": "qualityEntries[].channelNumbers" }
           ]
         }
@@ -507,8 +1177,8 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
           "single": false,
           "object_type_slug": "pam_site",
           "label": "PAM Site",
-          "predicate": "has_parent",
-          "to_parent_predicate": "has_child",
+          "predicate": "has_child",
+          "to_parent_predicate": "has_parent",
           "precedence": 1
         }
       ]
@@ -529,8 +1199,8 @@ INSERT INTO ${ADDB_SCHEMA}.object_type (
           "single": false,
           "object_type_slug": "pam_deployment",
           "label": "PAM Deployment",
-          "predicate": "has_parent",
-          "to_parent_predicate": "has_child",
+          "predicate": "has_child",
+          "to_parent_predicate": "has_parent",
           "precedence": 1
         }
       ]
